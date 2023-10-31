@@ -1,0 +1,46 @@
+{
+    "name": "ESP-Bootstrap",
+    "version": "1.0.0",
+    "description": "ESP-Bootstrap provides for abstration of web, OTA, eeprom configuration, and html template handling when working with ESP32 and ESP8266 boards.",
+    "keywords": "esp32, esp8266, starter",
+    "repository":
+    {
+      "type": "git",
+      "url": "https://github.com/synman/ESP-Bootstrap.git"
+    },
+    "authors":
+    [
+      {
+        "name": "Shell M. Shrader ",
+        "email": "shell@shellware.com",
+        "url": "https://www.shellware.com"
+      }
+    ],
+    "license": "DWTFYWT",
+    "homepage": "https://github.com/synman/ESP-Bootstrap",
+    "dependencies": [
+        {
+            "owner": "esphome",
+            "name": "ESPAsyncWebServer-esphome",
+            "version": ">=3.1.0"
+        },
+        {
+            "owner": "ayushsharma82",
+            "name": "ElegantOTA",
+            "version": ">=3.1.0"
+        },
+        {
+            "owner": "yasheena",
+            "name": "TelnetSpy",
+            "version": ">=1.4"
+        },
+        {
+            "owner": "khoih-prog",
+            "name": "ESP8266TimerInterrupt",
+            "version": ">=1.6.0",
+            "platforms": ["espressif8266"]
+        }
+    ],
+    "frameworks": "arduino",
+    "platforms": ["espressif8266", "espressif32"]
+  }
