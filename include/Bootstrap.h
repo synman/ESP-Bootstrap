@@ -65,7 +65,6 @@ static TelnetSpy *SandT;
 #ifdef esp32
     #include <WiFi.h>
     #include <AsyncTCP.h>
-    #include <WiFiClientSecure.h>
 
     #define WIFI_DISCONNECTED WIFI_EVENT_STA_DISCONNECTED
 
@@ -80,8 +79,6 @@ static TelnetSpy *SandT;
 
     #include <ESP8266Wifi.h>
     #include <ESPAsyncTCP.h>
-    #include <ESP8266HTTPClient.h>
-    #include <WiFiClientSecureBearSSL.h>
     #include "ESP8266TimerInterrupt.h"
 
     static volatile bool timer_pinged;

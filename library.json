@@ -1,7 +1,7 @@
 {
     "name": "ESP-Bootstrap",
-    "version": "1.0.0",
-    "description": "ESP-Bootstrap provides for abstration of web, OTA, eeprom configuration, and html template handling when working with ESP32 and ESP8266 boards.",
+    "version": "1.0.1",
+    "description": "ESP-Bootstrap provides for abstration of web (HTTP server), OTA, eeprom based configuration data, and html template handling / variable substitution when working with ESP32 and ESP8266 boards.  It dramatically reduces the time necessary to bring together (typical) baseline functionality for IoT projects.",
     "keywords": "esp32, esp8266, starter",
     "repository":
     {
@@ -16,7 +16,7 @@
         "url": "https://www.shellware.com"
       }
     ],
-    "license": "DWTFYWT",
+    "license": "WTFPL",
     "homepage": "https://github.com/synman/ESP-Bootstrap",
     "dependencies": [
         {
