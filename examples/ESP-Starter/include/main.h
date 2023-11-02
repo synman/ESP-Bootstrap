@@ -7,7 +7,7 @@ as published by Sam Hocevar. See the COPYING file for more details.
 ****************************************************************************/
 #include "Bootstrap.h"
 
-#ifdef ENABLE_DEBUG
+#ifdef BS_USE_TELNETSPY
     TelnetSpy SerialAndTelnet;
     Bootstrap bs = Bootstrap(PROJECT_NAME, &SerialAndTelnet, 1500000);
 #else

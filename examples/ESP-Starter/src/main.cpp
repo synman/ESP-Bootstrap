@@ -7,7 +7,7 @@ as published by Sam Hocevar. See the COPYING file for more details.
 ****************************************************************************/
 #include "main.h"
 
-#ifdef ENABLE_DEBUG
+#ifdef BS_USE_TELNETSPY
 void setExtraRemoteCommands(char c) {
   if (c == '?') {
     LOG_PRINTLN(bs.builtInRemoteCommandsMenu + "G = Get Station ID\n? = This menu\n");
@@ -17,7 +17,6 @@ void setExtraRemoteCommands(char c) {
   }
 }
 #endif
-
 void updateExtraConfigItem(const String item, String value) {
     if (item == "station_id") {
         memset(my_config.station_id, CFG_NOT_SET, WIFI_SSID_LEN);
@@ -30,9 +29,6 @@ void updateExtraConfigItem(const String item, String value) {
         return;
     }
 }
-void saveExtraConfig() {
-  bs.cfg(&my_config, sizeof(my_config));
-}
 void updateExtraHtmlTemplateItems(String *html) {
   while (html->indexOf("{station_id}", 0) != -1) {
     html->replace("{station_id}", String(my_config.station_id));
@@ -40,11 +36,11 @@ void updateExtraHtmlTemplateItems(String *html) {
 }
 
 void setup() {
-#ifdef ENABLE_DEBUG
-  bs.setExtraRemoteCommands(setExtraRemoteCommands);
-#endif
+  #ifdef BS_USE_TELNETSPY
+    bs.setExtraRemoteCommands(setExtraRemoteCommands);
+  #endif
   bs.updateExtraConfigItem(updateExtraConfigItem);
-  bs.saveExtraConfig(saveExtraConfig);
+  bs.saveExtraConfig([]() { bs.cfg(&my_config, sizeof(my_config)); });
   bs.updateExtraHtmlTemplateItems(updateExtraHtmlTemplateItems);
   bs.setConfigSize(sizeof(my_config));
   bs.setup();
@@ -52,15 +48,19 @@ void setup() {
   // get a fresh copy of our extended config struct
   memcpy(&my_config, bs.cfg(), sizeof(my_config));
 
+  bs.updateSetupHtml();
+  bs.updateIndexHtml();
+
   // setup done
-  LOG_PRINTLN("\nSystem Ready");
+  LOG_PRINTLN("\nSystem Ready\n");
 }
 
 void loop() {
   bs.loop();
 
-  static unsigned long lastUpdate = millis();
-  if (millis() - 5000 > lastUpdate) {
+  static unsigned long lastUpdate = 0;
+
+  if (millis() > 60000 && millis() - 60000 > lastUpdate) {
     bs.updateIndexHtml();
     lastUpdate = millis();
   }

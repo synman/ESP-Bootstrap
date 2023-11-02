@@ -9,7 +9,7 @@ as published by Sam Hocevar. See the COPYING file for more details.
 
 AsyncWebServer server(80);
 
-#ifdef ENABLE_DEBUG
+#ifdef BS_USE_TELNETSPY
     Bootstrap::Bootstrap(String project_name, TelnetSpy *spy, long serial_baud_rate) {
         SandT = spy;
         _project_name = project_name;
@@ -52,7 +52,7 @@ void Bootstrap::setup() {
 }
 
 void Bootstrap::loop() {
-    // handle TelnetSpy if ENABLE_DEBUG is defined
+    // handle TelnetSpy if BS_USE_TELNETSPY is defined
     BS_LOG_HANDLE();
 
     // handle a reboot request if pending
@@ -93,14 +93,14 @@ void Bootstrap::loop() {
     }
 
     if (setup_needs_update) {
-        BS_LOG_PRINTLN("\n----- rebuilding /setup.html");
+        BS_LOG_PRINTLN("----- rebuilding /setup.html");
         updateHtmlTemplate("/setup.template.html", false);
         BS_LOG_PRINTLN("-----  /setup.html rebuilt");
         setup_needs_update = false;
     }
 
     if (index_needs_update) {
-        BS_LOG_PRINTLN("\n----- rebuilding /index.html");
+        BS_LOG_PRINTLN("----- rebuilding /index.html");
         updateHtmlTemplate("/index.template.html", false);
         BS_LOG_PRINTLN("-----  /index.html rebuilt");
         index_needs_update = false;
@@ -152,7 +152,7 @@ void Bootstrap::wireConfig() {
     BS_LOG_PRINTLN("        config size: [" + String(config_size) + "]\n");
     BS_LOG_PRINTLN("        config host: [" + String(base_config.hostname) + "] stored: " + (base_config.hostname_flag == CFG_SET ? "true" : "false"));
     BS_LOG_PRINTLN("        config ssid: [" + String(base_config.ssid) + "] stored: " + (base_config.ssid_flag == CFG_SET ? "true" : "false"));
-    BS_LOG_PRINTLN("    config ssid pwd: [" + String(base_config.ssid_pwd) + "] stored: " + (base_config.ssid_pwd_flag == CFG_SET ? "true\n" : "false\n"));
+    BS_LOG_PRINTLN("    config ssid pwd: [" + String(base_config.ssid_pwd_flag == CFG_SET ? "********] stored: " : "] stored: ") + String(base_config.ssid_pwd_flag == CFG_SET ? "true" : "false"));
 }
 
 void Bootstrap::setConfigSize(const short size) {
@@ -174,11 +174,6 @@ char* Bootstrap::cfg() {
     memset(&cfg, CFG_NOT_SET, config_size);
     memcpy(&cfg, &config, config_size);
 
-    static bool firstCall = true;
-    if (firstCall) {
-        updateHtmlTemplate("/setup.template.html", false);
-        BS_LOG_PRINTLN("setup.html updated");
-    }
     return config;
 }
 
@@ -259,7 +254,7 @@ void Bootstrap::wireLittleFS() {
     if (!LittleFS.begin()) {
         BS_LOG_PRINTLN("\nAn Error has occurred while initializing LittleFS\n");
     } else {
-        #ifdef ENABLE_DEBUG
+        #ifdef BS_USE_TELNETSPY
             #ifdef esp32
                     const size_t fs_size = LittleFS.totalBytes() / 1000;
                     const size_t fs_used = LittleFS.usedBytes() / 1000;
@@ -272,7 +267,7 @@ void Bootstrap::wireLittleFS() {
             BS_LOG_PRINTLN();
             BS_LOG_PRINTLN("    Filesystem size: [" + String(fs_size) + "] KB");
             BS_LOG_PRINTLN("         Free space: [" + String(fs_size - fs_used) + "] KB");
-            BS_LOG_PRINTLN("          Free Heap: [" + String(ESP.getFreeHeap()) + "]");
+            BS_LOG_PRINTLN("          Free Heap: [" + String(ESP.getFreeHeap()) + "] B");
         #endif
     }
 }
@@ -438,64 +433,104 @@ void Bootstrap::wireElegantOTA() {
 }
 
 void Bootstrap::wireWebServerAndPaths() {
+    // typedef enum {
+    // HTTP_GET     = 0b00000001,
+    // HTTP_POST    = 0b00000010,
+    // HTTP_DELETE  = 0b00000100,
+    // HTTP_PUT     = 0b00001000,
+    // HTTP_PATCH   = 0b00010000,
+    // HTTP_HEAD    = 0b00100000,
+    // HTTP_OPTIONS = 0b01000000,
+    // HTTP_ANY     = 0b01111111,
+    // } WebRequestMethod;
+
     // define default document
     server.on("/", HTTP_GET, [this](AsyncWebServerRequest* request)
         {
             ap_mode_activity = true;
-            request->redirect("/index.html");
-            BS_LOG_PRINTLN("\n" + request->url() + " handled");
+            AsyncWebServerResponse *response = request->beginResponse(301); 
+            response->addHeader("Server", "ESP Async Web Server");
+            response->addHeader("X-Powered-By", "ESP-Bootstrap");
+            response->addHeader("Location", "/index.html");
+            request->send(response);
+            BS_LOG_PRINTF("%d: [%s] %s\n", request->method(), request->url(), "redirected to /index.html");
         });
 
     // define setup document
     server.on("/setup", HTTP_GET, [this](AsyncWebServerRequest* request)
         {
-            request->send(LittleFS, "/setup.html", "text/html");
-            BS_LOG_PRINTLN("\n" + request->url() + " handled");
+            AsyncWebServerResponse *response = request->beginResponse(LittleFS, "/setup.html", "text/html"); 
+            response->addHeader("Server", "ESP Async Web Server");
+            response->addHeader("X-Powered-By", "ESP-Bootstrap");
+            request->send(response);
+            BS_LOG_PRINTF("%d: [%s] %s\n", request->method(), request->url(), "handled");
         });
 
     // captive portal
     server.on("/hotspot-detect.html", HTTP_GET, [this](AsyncWebServerRequest* request)
         {
             ap_mode_activity = true;
-            request->send(LittleFS, "/index.html", "text/html");
-            BS_LOG_PRINTLN("\n" + request->url() + " handled");
+            AsyncWebServerResponse *response = request->beginResponse(LittleFS, "/index.html", "text/html"); 
+            response->addHeader("Server", "ESP Async Web Server");
+            response->addHeader("X-Powered-By", "ESP-Bootstrap");
+            request->send(response);
+            BS_LOG_PRINTF("%d: [%s] %s\n", request->method(), request->url(), "handled");
         });
     server.on("/library/test/success.html", HTTP_GET, [this](AsyncWebServerRequest* request)
         {
             ap_mode_activity = true;
-            request->send(LittleFS, "/index.html", "text/html");
-            BS_LOG_PRINTLN("\n" + request->url() + " handled");
+            AsyncWebServerResponse *response = request->beginResponse(LittleFS, "/index.html", "text/html"); 
+            response->addHeader("Server", "ESP Async Web Server");
+            response->addHeader("X-Powered-By", "ESP-Bootstrap");
+            request->send(response);
+            BS_LOG_PRINTF("%d: [%s] %s\n", request->method(), request->url(), "handled");
         });
     server.on("/generate_204", HTTP_GET, [this](AsyncWebServerRequest* request)
         {
             ap_mode_activity = true;
-            request->send(LittleFS, "/index.html", "text/html");
-            BS_LOG_PRINTLN("\n" + request->url() + " handled");
+            AsyncWebServerResponse *response = request->beginResponse(LittleFS, "/index.html", "text/html"); 
+            response->addHeader("Server", "ESP Async Web Server");
+            response->addHeader("X-Powered-By", "ESP-Bootstrap");
+            request->send(response);
+            BS_LOG_PRINTF("%d: [%s] %s\n", request->method(), request->url(), "handled");
         });
     server.on("/gen_204", HTTP_GET, [this](AsyncWebServerRequest* request)
         {
             ap_mode_activity = true;
-            request->send(LittleFS, "/index.html", "text/html");
-            BS_LOG_PRINTLN("\n" + request->url() + " handled");
+            AsyncWebServerResponse *response = request->beginResponse(LittleFS, "/index.html", "text/html"); 
+            response->addHeader("Server", "ESP Async Web Server");
+            response->addHeader("X-Powered-By", "ESP-Bootstrap");
+            request->send(response);
+            BS_LOG_PRINTF("%d: [%s] %s\n", request->method(), request->url(), "handled");
         });
     server.on("/ncsi.txt", HTTP_GET, [this](AsyncWebServerRequest* request)
         {
             ap_mode_activity = true;
-            request->send(LittleFS, "/index.html", "text/html");
-            BS_LOG_PRINTLN("\n" + request->url() + " handled");
+            AsyncWebServerResponse *response = request->beginResponse(LittleFS, "/index.html", "text/html"); 
+            response->addHeader("Server", "ESP Async Web Server");
+            response->addHeader("X-Powered-By", "ESP-Bootstrap");
+            request->send(response);
+            BS_LOG_PRINTF("%d: [%s] %s\n", request->method(), request->url(), "handled");
         });
     server.on("/check_network_status.txt", HTTP_GET, [this](AsyncWebServerRequest* request)
         {
             ap_mode_activity = true;
-            request->send(LittleFS, "/index.html", "text/html");
-            BS_LOG_PRINTLN("\n" + request->url() + " handled");
+            AsyncWebServerResponse *response = request->beginResponse(LittleFS, "/index.html", "text/html"); 
+            response->addHeader("Server", "ESP Async Web Server");
+            response->addHeader("X-Powered-By", "ESP-Bootstrap");
+            request->send(response);
+            BS_LOG_PRINTF("%d: [%s] %s\n", request->method(), request->url(), "handled");
         });
 
     // request reboot
     server.on("/reboot", HTTP_GET, [this](AsyncWebServerRequest* request)
         {
-            request->redirect("/index.html");
-            BS_LOG_PRINTLN("\n" + request->url() + " handled");
+            AsyncWebServerResponse *response = request->beginResponse(302); 
+            response->addHeader("Server", "ESP Async Web Server");
+            response->addHeader("X-Powered-By", "ESP-Bootstrap");
+            response->addHeader("Location", "/index.html");
+            request->send(response);
+            BS_LOG_PRINTF("%d: [%s] %s\n", request->method(), request->url(), "handled");
             esp_reboot_requested = true;
         });
 
@@ -508,8 +543,13 @@ void Bootstrap::wireWebServerAndPaths() {
 
             saveConfig();
 
-            request->redirect("/index.html");
-            BS_LOG_PRINTLN("\n" + request->url() + " handled");
+            AsyncWebServerResponse *response = request->beginResponse(302); 
+            response->addHeader("Server", "ESP Async Web Server");
+            response->addHeader("X-Powered-By", "ESP-Bootstrap");
+            response->addHeader("Location", "/index.html");
+            request->send(response);
+
+            BS_LOG_PRINTF("%d: [%s] %s\n", request->method(), request->url(), "handled");
         });
 
     // load config
@@ -518,8 +558,14 @@ void Bootstrap::wireWebServerAndPaths() {
             BS_LOG_PRINTLN();
             wireConfig();
             setup_needs_update = true;
-            request->redirect("/index.html");
-            BS_LOG_PRINTLN("\n" + request->url() + " handled");
+
+            AsyncWebServerResponse *response = request->beginResponse(302); 
+            response->addHeader("Server", "ESP Async Web Server");
+            response->addHeader("X-Powered-By", "ESP-Bootstrap");
+            response->addHeader("Location", "/index.html");
+            request->send(response);
+
+            BS_LOG_PRINTF("%d: [%s] %s\n", request->method(), request->url(), "handled");
         });
 
     // wipe config
@@ -527,10 +573,15 @@ void Bootstrap::wireWebServerAndPaths() {
         {
             const boolean reboot = !request->hasParam("noreboot");
 
-            wipeConfig();
+            AsyncWebServerResponse *response = request->beginResponse(302); 
+            response->addHeader("Server", "ESP Async Web Server");
+            response->addHeader("X-Powered-By", "ESP-Bootstrap");
+            response->addHeader("Location", "/index.html");
+            request->send(response);
 
-            request->redirect("/index.html");
-            BS_LOG_PRINTLN("\n" + request->url() + " handled");
+            BS_LOG_PRINTF("%d: [%s] %s\n", request->method(), request->url(), "handled");
+
+            wipeConfig();
 
             // trigger a reboot
             if (reboot) esp_reboot_requested = true;
@@ -540,21 +591,30 @@ void Bootstrap::wireWebServerAndPaths() {
     server.onNotFound([this](AsyncWebServerRequest* request)
         {
             ap_mode_activity = true;
+            String url = request->url(); url.toLowerCase();
 
             if (LittleFS.exists(request->url())) {
                 AsyncWebServerResponse* response = request->beginResponse(LittleFS, request->url(), String());
-                String url = request->url(); url.toLowerCase();
+                response->addHeader("Server", "ESP Async Web Server");
+                response->addHeader("X-Powered-By", "ESP-Bootstrap");
+    
                 // only chache digital assets
                 if (url.indexOf(".png") != -1 || url.indexOf(".jpg") != -1 || url.indexOf(".ico") != -1 || url.indexOf(".svg") != -1) {
                     response->addHeader("Cache-Control", "max-age=604800");
                 } else {
                     response->addHeader("Cache-Control", "no-store");
                 }
+
                 request->send(response);
-                BS_LOG_PRINTLN("\n" + request->url() + " handled");
+
+                BS_LOG_PRINTF("%d: [%s] %s\n", request->method(), url.c_str(), "handled");
             } else {
-                request->send(404, "text/plain", request->url() + " Not found!");
-                BS_LOG_PRINTLN("\n" + request->url() + " Not found!");
+                AsyncWebServerResponse *response = request->beginResponse(404, "text/plain", request->url() + " not found!");
+                response->addHeader("Server", "ESP Async Web Server");
+                response->addHeader("X-Powered-By", "ESP-Bootstrap");
+                request->send(response);
+
+                BS_LOG_PRINTF("%d: [%s] %s\n", request->method(), url.c_str(), "not found!");
             }
         });
 
@@ -613,7 +673,7 @@ void Bootstrap::updateExtraHtmlTemplateItems(std::function<void(String *html)> c
     updateExtraHtmlTemplateItemsCallback = callable;
 }
 
-#ifdef ENABLE_DEBUG
+#ifdef BS_USE_TELNETSPY
     void Bootstrap::checkForRemoteCommand() {
         if (SandT->available() > 0) {
             char c = SandT->read();
@@ -643,7 +703,9 @@ void Bootstrap::updateExtraHtmlTemplateItems(std::function<void(String *html)> c
             break;
             case 'S':
                 {
-                    BS_LOG_PRINTLN("\nType SSID and press <ENTER>");
+                    const unsigned long startTime = millis();
+
+                    BS_LOG_PRINT("\n    Type SSID and press <ENTER>: ");
                     BS_LOG_FLUSH();
 
                     String ssid;
@@ -656,26 +718,102 @@ void Bootstrap::updateExtraHtmlTemplateItems(std::function<void(String *html)> c
                                 ssid = ssid + String(c);
                             }
                         }
+                        if (startTime + 30000 < millis()) {
+                            BS_LOG_PRINTLN("\n\nTimed out!\n");
+                            BS_LOG_FLUSH();
+                            return;
+                        }
                         watchDogRefresh();
                     } while (c != 13);
 
-                    BS_LOG_PRINTLN("\nType PASSWORD and press <ENTER>");
+                    BS_LOG_PRINT("\nType PASSWORD and press <ENTER>: ");
                     BS_LOG_FLUSH();
                     String ssid_pwd;
                     do {
                         if (SandT->available() > 0) {
                             c = SandT->read();
                             if (c != 10 && c != 13) {
-                                BS_LOG_PRINT(c);
+                                BS_LOG_PRINT("*");
                                 BS_LOG_FLUSH();
                                 ssid_pwd = ssid_pwd + String(c);
                             }
                         }
+                        if (startTime + 30000 < millis()) {
+                            BS_LOG_PRINTLN("\n\nTimed out!\n");
+                            BS_LOG_FLUSH();
+                            return;
+                        }
                         watchDogRefresh();
                     } while (c != 13);
 
-                    BS_LOG_PRINTLN("\n\nSSID=[" + ssid + "] PWD=[" + ssid_pwd + "]\n");
+                    BS_LOG_PRINTLN("\n\nSSID=[" + ssid + "] PWD=[********]\n");
                     BS_LOG_FLUSH();
+
+                    while (SandT->available() > 0) {
+                        SandT->read();
+                    }
+
+                    BS_LOG_PRINT("Type YES to confirm settings: ");
+
+                    do {
+                        if (SandT->available() > 0) {
+                            c = SandT->read();
+                            if (c != 89) {
+                                BS_LOG_PRINTLN("\n\nAborted!\n");
+                                BS_LOG_FLUSH();
+                                return;
+                            }
+                        }
+                        if (startTime + 30000 < millis()) {
+                            BS_LOG_PRINTLN("\n\nTimed out!\n");
+                            BS_LOG_FLUSH();
+                            return;
+                        }
+                        watchDogRefresh();
+                    } while (c != 89);
+
+                    BS_LOG_PRINT("Y");
+                    BS_LOG_FLUSH();
+
+                    do {
+                        if (SandT->available() > 0) {
+                            c = SandT->read();
+                            if (c != 69) {
+                                BS_LOG_PRINTLN("\n\nAborted!\n");
+                                BS_LOG_FLUSH();
+                                return;
+                            }
+                        }
+                        if (startTime + 30000 < millis()) {
+                            BS_LOG_PRINTLN("\n\nTimed out!\n");
+                            BS_LOG_FLUSH();
+                            return;
+                        }
+                        watchDogRefresh();
+                    } while (c != 69);
+
+                    BS_LOG_PRINT("E");
+                    BS_LOG_FLUSH();
+
+                    do {
+                        if (SandT->available() > 0) {
+                            c = SandT->read();
+                            if (c != 83) {
+                                BS_LOG_PRINTLN("\n\nAborted!\n");
+                                BS_LOG_FLUSH();
+                                return;
+                            }
+                        }
+                        if (startTime + 30000 < millis()) {
+                            BS_LOG_PRINTLN("\n\nTimed out!\n");
+                            BS_LOG_FLUSH();
+                            return;
+                        }
+                        watchDogRefresh();
+                    } while (c != 83);
+
+                    BS_LOG_PRINTLN("S");
+                    BS_LOG_FLUSH();                    
 
                     memset(base_config.ssid, CFG_NOT_SET, WIFI_SSID_LEN);
                     if (ssid.length() > 0) {
@@ -700,23 +838,25 @@ void Bootstrap::updateExtraHtmlTemplateItems(std::function<void(String *html)> c
                     EEPROM.commit();
                     EEPROM.end();
 
-                    BS_LOG_PRINTLN("SSID and Password saved - reload config or reboot\n");
+                    BS_LOG_PRINTLN("\nSSID and Password saved - reload config or reboot\n");
                     BS_LOG_FLUSH();
                 }
                 break;
             case 'L':
                 wireConfig();
+                BS_LOG_PRINTLN();
                 setup_needs_update = true;
                 break;
             case 'W':
                 wipeConfig();
+                BS_LOG_PRINTLN();
                 break;
             case 'X':
                 BS_LOG_PRINTLN(F("\r\nClosing session..."));
                 SandT->disconnectClient();
                 break;
             case 'R':
-                BS_LOG_PRINTLN(F("\r\nsubmitting reboot request..."));
+                BS_LOG_PRINTLN(F("\r\nSubmitting reboot request..."));
                 esp_reboot_requested = true;
                 break;
             case ' ':
@@ -724,7 +864,7 @@ void Bootstrap::updateExtraHtmlTemplateItems(std::function<void(String *html)> c
                 break;
             case 'C':
                 // current time
-                BS_LOG_PRINTF("Current timestamp: [%s]\n", getTimestamp().c_str());
+                BS_LOG_PRINTF("Current timestamp: [%s]\n\n", getTimestamp().c_str());
                 break;
             default:
                 if (setExtraRemoteCommandsCallback != NULL) setExtraRemoteCommandsCallback(c);

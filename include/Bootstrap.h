@@ -12,7 +12,7 @@ as published by Sam Hocevar. See the COPYING file for more details.
 #pragma GCC diagnostic ignored "-Wunused-variable"
 static TelnetSpy *SandT;
 
-#ifdef ENABLE_DEBUG
+#ifdef BS_USE_TELNETSPY
     #define LOG_PRINT(...)       SerialAndTelnet.print(__VA_ARGS__)
     #define LOG_PRINTLN(...)     SerialAndTelnet.println(__VA_ARGS__)
     #define LOG_PRINTF(...)      SerialAndTelnet.printf(__VA_ARGS__)
@@ -114,7 +114,7 @@ typedef struct config_type {
 
 class Bootstrap {
     public:
-        #ifdef ENABLE_DEBUG
+        #ifdef BS_USE_TELNETSPY
             Bootstrap(String project_name, TelnetSpy *spy, long serial_baud_rate=1500000);
             void setExtraRemoteCommands(std::function<void(char c)> callable);
             const String builtInRemoteCommandsMenu = "\n\nCommands:\n\nC = Current Timestamp\nD = Disconnect WiFi\nF = Filesystem Info\nS - Set SSID / Password\nL = Reload Config\nW = Wipe Config\nX = Close Session\nR = Reboot ESP\n";
@@ -161,7 +161,7 @@ class Bootstrap {
         void wireArduinoOTA();
         void wireElegantOTA();
 
-        #ifdef ENABLE_DEBUG
+        #ifdef BS_USE_TELNETSPY
             void checkForRemoteCommand();
             long _serial_baud_rate;
             std::function<void(char c)> setExtraRemoteCommandsCallback = NULL;
