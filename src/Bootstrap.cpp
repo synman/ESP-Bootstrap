@@ -453,7 +453,7 @@ void Bootstrap::wireWebServerAndPaths() {
             response->addHeader("X-Powered-By", "ESP-Bootstrap");
             response->addHeader("Location", "/index.html");
             request->send(response);
-            BS_LOG_PRINTF("%d: [%s] %s\n", request->method(), request->url(), "redirected to /index.html");
+            BS_LOG_PRINTF("%d: [%s] %s\n", request->method(), request->url().c_str(), "redirected to /index.html");
         });
 
     // define setup document
@@ -463,7 +463,7 @@ void Bootstrap::wireWebServerAndPaths() {
             response->addHeader("Server", "ESP Async Web Server");
             response->addHeader("X-Powered-By", "ESP-Bootstrap");
             request->send(response);
-            BS_LOG_PRINTF("%d: [%s] %s\n", request->method(), request->url(), "handled");
+            BS_LOG_PRINTF("%d: [%s] %s\n", request->method(), request->url().c_str(), "handled");
         });
 
     // captive portal
@@ -474,7 +474,7 @@ void Bootstrap::wireWebServerAndPaths() {
             response->addHeader("Server", "ESP Async Web Server");
             response->addHeader("X-Powered-By", "ESP-Bootstrap");
             request->send(response);
-            BS_LOG_PRINTF("%d: [%s] %s\n", request->method(), request->url(), "handled");
+            BS_LOG_PRINTF("%d: [%s] %s\n", request->method(), request->url().c_str(), "handled");
         });
     server.on("/library/test/success.html", HTTP_GET, [this](AsyncWebServerRequest* request)
         {
@@ -483,7 +483,7 @@ void Bootstrap::wireWebServerAndPaths() {
             response->addHeader("Server", "ESP Async Web Server");
             response->addHeader("X-Powered-By", "ESP-Bootstrap");
             request->send(response);
-            BS_LOG_PRINTF("%d: [%s] %s\n", request->method(), request->url(), "handled");
+            BS_LOG_PRINTF("%d: [%s] %s\n", request->method(), request->url().c_str(), "handled");
         });
     server.on("/generate_204", HTTP_GET, [this](AsyncWebServerRequest* request)
         {
@@ -492,7 +492,7 @@ void Bootstrap::wireWebServerAndPaths() {
             response->addHeader("Server", "ESP Async Web Server");
             response->addHeader("X-Powered-By", "ESP-Bootstrap");
             request->send(response);
-            BS_LOG_PRINTF("%d: [%s] %s\n", request->method(), request->url(), "handled");
+            BS_LOG_PRINTF("%d: [%s] %s\n", request->method(), request->url().c_str(), "handled");
         });
     server.on("/gen_204", HTTP_GET, [this](AsyncWebServerRequest* request)
         {
@@ -501,7 +501,7 @@ void Bootstrap::wireWebServerAndPaths() {
             response->addHeader("Server", "ESP Async Web Server");
             response->addHeader("X-Powered-By", "ESP-Bootstrap");
             request->send(response);
-            BS_LOG_PRINTF("%d: [%s] %s\n", request->method(), request->url(), "handled");
+            BS_LOG_PRINTF("%d: [%s] %s\n", request->method(), request->url().c_str(), "handled");
         });
     server.on("/ncsi.txt", HTTP_GET, [this](AsyncWebServerRequest* request)
         {
@@ -510,7 +510,7 @@ void Bootstrap::wireWebServerAndPaths() {
             response->addHeader("Server", "ESP Async Web Server");
             response->addHeader("X-Powered-By", "ESP-Bootstrap");
             request->send(response);
-            BS_LOG_PRINTF("%d: [%s] %s\n", request->method(), request->url(), "handled");
+            BS_LOG_PRINTF("%d: [%s] %s\n", request->method(), request->url().c_str(), "handled");
         });
     server.on("/check_network_status.txt", HTTP_GET, [this](AsyncWebServerRequest* request)
         {
@@ -519,7 +519,7 @@ void Bootstrap::wireWebServerAndPaths() {
             response->addHeader("Server", "ESP Async Web Server");
             response->addHeader("X-Powered-By", "ESP-Bootstrap");
             request->send(response);
-            BS_LOG_PRINTF("%d: [%s] %s\n", request->method(), request->url(), "handled");
+            BS_LOG_PRINTF("%d: [%s] %s\n", request->method(), request->url().c_str(), "handled");
         });
 
     // request reboot
@@ -530,7 +530,7 @@ void Bootstrap::wireWebServerAndPaths() {
             response->addHeader("X-Powered-By", "ESP-Bootstrap");
             response->addHeader("Location", "/index.html");
             request->send(response);
-            BS_LOG_PRINTF("%d: [%s] %s\n", request->method(), request->url(), "handled");
+            BS_LOG_PRINTF("%d: [%s] %s\n", request->method(), request->url().c_str(), "handled");
             esp_reboot_requested = true;
         });
 
@@ -549,7 +549,7 @@ void Bootstrap::wireWebServerAndPaths() {
             response->addHeader("Location", "/index.html");
             request->send(response);
 
-            BS_LOG_PRINTF("%d: [%s] %s\n", request->method(), request->url(), "handled");
+            BS_LOG_PRINTF("%d: [%s] %s\n", request->method(), request->url().c_str(), "handled");
         });
 
     // load config
@@ -565,7 +565,7 @@ void Bootstrap::wireWebServerAndPaths() {
             response->addHeader("Location", "/index.html");
             request->send(response);
 
-            BS_LOG_PRINTF("%d: [%s] %s\n", request->method(), request->url(), "handled");
+            BS_LOG_PRINTF("%d: [%s] %s\n", request->method(), request->url().c_str(), "handled");
         });
 
     // wipe config
@@ -579,7 +579,7 @@ void Bootstrap::wireWebServerAndPaths() {
             response->addHeader("Location", "/index.html");
             request->send(response);
 
-            BS_LOG_PRINTF("%d: [%s] %s\n", request->method(), request->url(), "handled");
+            BS_LOG_PRINTF("%d: [%s] %s\n", request->method(), request->url().c_str(), "handled");
 
             wipeConfig();
 
