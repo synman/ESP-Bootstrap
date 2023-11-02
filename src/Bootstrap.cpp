@@ -931,7 +931,7 @@ void Bootstrap::setActiveAP() {
             ESP.restart();
         } else {
             timer_pinged = true;
-            BS_LOG_PRINTLN("\nPING");
+            BS_LOG_PRINTLN("PING");
         }
     }
 #endif
