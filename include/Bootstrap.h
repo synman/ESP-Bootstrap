@@ -160,6 +160,7 @@ class Bootstrap {
         void wireWiFi();
         void wireArduinoOTA();
         void wireElegantOTA();
+        const char* getHttpMethodName(const WebRequestMethodComposite method);
 
         #ifdef BS_USE_TELNETSPY
             void checkForRemoteCommand();

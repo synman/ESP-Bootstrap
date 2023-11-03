@@ -433,17 +433,6 @@ void Bootstrap::wireElegantOTA() {
 }
 
 void Bootstrap::wireWebServerAndPaths() {
-    // typedef enum {
-    // HTTP_GET     = 0b00000001,
-    // HTTP_POST    = 0b00000010,
-    // HTTP_DELETE  = 0b00000100,
-    // HTTP_PUT     = 0b00001000,
-    // HTTP_PATCH   = 0b00010000,
-    // HTTP_HEAD    = 0b00100000,
-    // HTTP_OPTIONS = 0b01000000,
-    // HTTP_ANY     = 0b01111111,
-    // } WebRequestMethod;
-
     // define default document
     server.on("/", HTTP_GET, [this](AsyncWebServerRequest* request)
         {
@@ -453,7 +442,7 @@ void Bootstrap::wireWebServerAndPaths() {
             response->addHeader("X-Powered-By", "ESP-Bootstrap");
             response->addHeader("Location", "/index.html");
             request->send(response);
-            BS_LOG_PRINTF("%d: [%s] %s\n", request->method(), request->url().c_str(), "redirected to /index.html");
+            BS_LOG_PRINTF("%s:%s: [%s] %s\n", request->client()->remoteIP().toString().c_str(), getHttpMethodName(request->method()), request->url().c_str(), "redirected to /index.html");
         });
 
     // define setup document
@@ -463,7 +452,7 @@ void Bootstrap::wireWebServerAndPaths() {
             response->addHeader("Server", "ESP Async Web Server");
             response->addHeader("X-Powered-By", "ESP-Bootstrap");
             request->send(response);
-            BS_LOG_PRINTF("%d: [%s] %s\n", request->method(), request->url().c_str(), "handled");
+            BS_LOG_PRINTF("%s:%s: [%s] %s\n", request->client()->remoteIP().toString().c_str(), getHttpMethodName(request->method()), request->url().c_str(), "handled");
         });
 
     // captive portal
@@ -474,7 +463,7 @@ void Bootstrap::wireWebServerAndPaths() {
             response->addHeader("Server", "ESP Async Web Server");
             response->addHeader("X-Powered-By", "ESP-Bootstrap");
             request->send(response);
-            BS_LOG_PRINTF("%d: [%s] %s\n", request->method(), request->url().c_str(), "handled");
+            BS_LOG_PRINTF("%s:%s: [%s] %s\n", request->client()->remoteIP().toString().c_str(), getHttpMethodName(request->method()), request->url().c_str(), "handled");
         });
     server.on("/library/test/success.html", HTTP_GET, [this](AsyncWebServerRequest* request)
         {
@@ -483,7 +472,7 @@ void Bootstrap::wireWebServerAndPaths() {
             response->addHeader("Server", "ESP Async Web Server");
             response->addHeader("X-Powered-By", "ESP-Bootstrap");
             request->send(response);
-            BS_LOG_PRINTF("%d: [%s] %s\n", request->method(), request->url().c_str(), "handled");
+            BS_LOG_PRINTF("%s:%s: [%s] %s\n", request->client()->remoteIP().toString().c_str(), getHttpMethodName(request->method()), request->url().c_str(), "handled");
         });
     server.on("/generate_204", HTTP_GET, [this](AsyncWebServerRequest* request)
         {
@@ -492,7 +481,7 @@ void Bootstrap::wireWebServerAndPaths() {
             response->addHeader("Server", "ESP Async Web Server");
             response->addHeader("X-Powered-By", "ESP-Bootstrap");
             request->send(response);
-            BS_LOG_PRINTF("%d: [%s] %s\n", request->method(), request->url().c_str(), "handled");
+            BS_LOG_PRINTF("%s:%s: [%s] %s\n", request->client()->remoteIP().toString().c_str(), getHttpMethodName(request->method()), request->url().c_str(), "handled");
         });
     server.on("/gen_204", HTTP_GET, [this](AsyncWebServerRequest* request)
         {
@@ -501,7 +490,7 @@ void Bootstrap::wireWebServerAndPaths() {
             response->addHeader("Server", "ESP Async Web Server");
             response->addHeader("X-Powered-By", "ESP-Bootstrap");
             request->send(response);
-            BS_LOG_PRINTF("%d: [%s] %s\n", request->method(), request->url().c_str(), "handled");
+            BS_LOG_PRINTF("%s:%s: [%s] %s\n", request->client()->remoteIP().toString().c_str(), getHttpMethodName(request->method()), request->url().c_str(), "handled");
         });
     server.on("/ncsi.txt", HTTP_GET, [this](AsyncWebServerRequest* request)
         {
@@ -510,7 +499,7 @@ void Bootstrap::wireWebServerAndPaths() {
             response->addHeader("Server", "ESP Async Web Server");
             response->addHeader("X-Powered-By", "ESP-Bootstrap");
             request->send(response);
-            BS_LOG_PRINTF("%d: [%s] %s\n", request->method(), request->url().c_str(), "handled");
+            BS_LOG_PRINTF("%s:%s: [%s] %s\n", request->client()->remoteIP().toString().c_str(), getHttpMethodName(request->method()), request->url().c_str(), "handled");
         });
     server.on("/check_network_status.txt", HTTP_GET, [this](AsyncWebServerRequest* request)
         {
@@ -519,7 +508,7 @@ void Bootstrap::wireWebServerAndPaths() {
             response->addHeader("Server", "ESP Async Web Server");
             response->addHeader("X-Powered-By", "ESP-Bootstrap");
             request->send(response);
-            BS_LOG_PRINTF("%d: [%s] %s\n", request->method(), request->url().c_str(), "handled");
+            BS_LOG_PRINTF("%s:%s: [%s] %s\n", request->client()->remoteIP().toString().c_str(), getHttpMethodName(request->method()), request->url().c_str(), "handled");
         });
 
     // request reboot
@@ -530,7 +519,7 @@ void Bootstrap::wireWebServerAndPaths() {
             response->addHeader("X-Powered-By", "ESP-Bootstrap");
             response->addHeader("Location", "/index.html");
             request->send(response);
-            BS_LOG_PRINTF("%d: [%s] %s\n", request->method(), request->url().c_str(), "handled");
+            BS_LOG_PRINTF("%s:%s: [%s] %s\n", request->client()->remoteIP().toString().c_str(), getHttpMethodName(request->method()), request->url().c_str(), "handled");
             esp_reboot_requested = true;
         });
 
@@ -549,7 +538,7 @@ void Bootstrap::wireWebServerAndPaths() {
             response->addHeader("Location", "/index.html");
             request->send(response);
 
-            BS_LOG_PRINTF("%d: [%s] %s\n", request->method(), request->url().c_str(), "handled");
+            BS_LOG_PRINTF("%s:%s: [%s] %s\n", request->client()->remoteIP().toString().c_str(), getHttpMethodName(request->method()), request->url().c_str(), "handled");
         });
 
     // load config
@@ -565,7 +554,7 @@ void Bootstrap::wireWebServerAndPaths() {
             response->addHeader("Location", "/index.html");
             request->send(response);
 
-            BS_LOG_PRINTF("%d: [%s] %s\n", request->method(), request->url().c_str(), "handled");
+            BS_LOG_PRINTF("%s:%s: [%s] %s\n", request->client()->remoteIP().toString().c_str(), getHttpMethodName(request->method()), request->url().c_str(), "handled");
         });
 
     // wipe config
@@ -579,7 +568,7 @@ void Bootstrap::wireWebServerAndPaths() {
             response->addHeader("Location", "/index.html");
             request->send(response);
 
-            BS_LOG_PRINTF("%d: [%s] %s\n", request->method(), request->url().c_str(), "handled");
+            BS_LOG_PRINTF("%s:%s: [%s] %s\n", request->client()->remoteIP().toString().c_str(), getHttpMethodName(request->method()), request->url().c_str(), "handled");
 
             wipeConfig();
 
@@ -607,14 +596,14 @@ void Bootstrap::wireWebServerAndPaths() {
 
                 request->send(response);
 
-                BS_LOG_PRINTF("%d: [%s] %s\n", request->method(), url.c_str(), "handled");
+                BS_LOG_PRINTF("%s:%s: [%s] %s\n", request->client()->remoteIP().toString().c_str(), getHttpMethodName(request->method()), url.c_str(), "handled");
             } else {
                 AsyncWebServerResponse *response = request->beginResponse(404, "text/plain", request->url() + " not found!");
                 response->addHeader("Server", "ESP Async Web Server");
                 response->addHeader("X-Powered-By", "ESP-Bootstrap");
                 request->send(response);
-
-                BS_LOG_PRINTF("%d: [%s] %s\n", request->method(), url.c_str(), "not found!");
+                
+                BS_LOG_PRINTF("%s:%s: [%s] %s\n", request->client()->remoteIP().toString().c_str(), getHttpMethodName(request->method()), url.c_str(), "not found!");
             }
         });
 
@@ -671,6 +660,39 @@ void Bootstrap::updateHtmlTemplate(String template_filename, bool show_time) {
 
 void Bootstrap::updateExtraHtmlTemplateItems(std::function<void(String *html)> callable) {
     updateExtraHtmlTemplateItemsCallback = callable;
+}
+
+const char* Bootstrap::getHttpMethodName(const WebRequestMethodComposite method) {
+    // typedef enum {
+    // HTTP_GET     = 0b00000001,
+    // HTTP_POST    = 0b00000010,
+    // HTTP_DELETE  = 0b00000100,
+    // HTTP_PUT     = 0b00001000,
+    // HTTP_PATCH   = 0b00010000,
+    // HTTP_HEAD    = 0b00100000,
+    // HTTP_OPTIONS = 0b01000000,
+    // HTTP_ANY     = 0b01111111,
+    // } WebRequestMethod;
+    switch (method) {
+        case HTTP_GET:
+            return "GET";
+        case HTTP_POST:
+            return "POST";
+        case HTTP_DELETE:
+            return "DELETE";
+        case HTTP_PUT:
+            return "PUT";
+        case HTTP_PATCH:
+            return "PATCH";
+        case HTTP_HEAD:
+            return "HEAD";
+        case HTTP_OPTIONS:
+            return "OPTIONS";
+        case HTTP_ANY:
+            return "ANY";
+        default:
+            return "UNKNOWN";
+    }
 }
 
 #ifdef BS_USE_TELNETSPY
