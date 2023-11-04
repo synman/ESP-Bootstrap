@@ -1,6 +1,6 @@
 {
     "name": "ESP-Bootstrap",
-    "version": "1.0.4",
+    "version": "1.0.5",
     "description": "ESP-Bootstrap provides for abstraction of web (HTTP server), OTA, eeprom based configuration data, html template handling / variable substitution, and leverages a custom Watchdog to catch and address system hang conditions when working with ESP32 and ESP8266 systems.  It dramatically reduces the time necessary to bring together (typical) baseline functionality for IoT projects.",
     "keywords": "esp32, esp8266, starter",
     "repository":
