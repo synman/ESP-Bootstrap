@@ -23,7 +23,7 @@ AsyncWebServer server(80);
 
 void Bootstrap::setup() {
     INIT_LED;
-    
+
     BS_LOG_WELCOME_MSG("\n" + _project_name + " - Press ? for a list of commands\n");
     BS_LOG_BEGIN(_serial_baud_rate);
     BS_LOG_PRINTLN("\n\n" + _project_name + " Start Up\n");
@@ -36,7 +36,7 @@ void Bootstrap::setup() {
     wireWebServerAndPaths();
 
     // defer updating setup.html
-    setup_needs_update = true;
+    updateSetupHtml();
 
     // wire up our custom watchdog
 #ifdef esp32
@@ -177,7 +177,7 @@ void Bootstrap::updateConfigItem(const String item, String value) {
     if (item == "hostname") {
         memset(base_config.hostname, CFG_NOT_SET, HOSTNAME_LEN);
         if (value.length() > 0) {
-        base_config.hostname_flag = CFG_SET;
+            base_config.hostname_flag = CFG_SET;
         } else {
             base_config.hostname_flag = CFG_NOT_SET;
             value = DEFAULT_HOSTNAME;
@@ -432,7 +432,7 @@ void Bootstrap::wireWebServerAndPaths() {
     // define default document
     server.on("/", HTTP_GET, [this](AsyncWebServerRequest* request)
         {
-            ap_mode_activity = true;
+            setActiveAP();
             AsyncWebServerResponse *response = request->beginResponse(301); 
             response->addHeader("Server", "ESP Async Web Server");
             response->addHeader("X-Powered-By", "ESP-Bootstrap");
@@ -444,7 +444,7 @@ void Bootstrap::wireWebServerAndPaths() {
     // define setup document
     server.on("/setup", HTTP_GET, [this](AsyncWebServerRequest* request)
         {
-            while (xSemaphoreTake(bs_mutex, portMAX_DELAY) != pdTRUE) {};
+            setLockState(LOCK_STATE_LOCK);
 
             AsyncWebServerResponse *response = request->beginResponse(LittleFS, "/setup.html", "text/html"); 
             response->addHeader("Server", "ESP Async Web Server");
@@ -452,14 +452,16 @@ void Bootstrap::wireWebServerAndPaths() {
             request->send(response);
 
             BS_LOG_PRINTF("%s:%s: [%s] %s\n", request->client()->remoteIP().toString().c_str(), getHttpMethodName(request->method()), request->url().c_str(), "handled");
-            xSemaphoreGive(bs_mutex); 
+
+            setLockState(LOCK_STATE_UNLOCK);
         });
 
     // captive portal
     server.on("/hotspot-detect.html", HTTP_GET, [this](AsyncWebServerRequest* request)
         {
-            ap_mode_activity = true;
-            while (xSemaphoreTake(bs_mutex, portMAX_DELAY) != pdTRUE) {};
+            setActiveAP();
+
+            setLockState(LOCK_STATE_LOCK);
 
             AsyncWebServerResponse *response = request->beginResponse(LittleFS, "/index.html", "text/html"); 
             response->addHeader("Server", "ESP Async Web Server");
@@ -467,12 +469,14 @@ void Bootstrap::wireWebServerAndPaths() {
             request->send(response);
 
             BS_LOG_PRINTF("%s:%s: [%s] %s\n", request->client()->remoteIP().toString().c_str(), getHttpMethodName(request->method()), request->url().c_str(), "handled");
-            xSemaphoreGive(bs_mutex); 
+
+            setLockState(LOCK_STATE_UNLOCK);
         });
     server.on("/library/test/success.html", HTTP_GET, [this](AsyncWebServerRequest* request)
         {
-            ap_mode_activity = true;
-            while (xSemaphoreTake(bs_mutex, portMAX_DELAY) != pdTRUE) {};
+            setActiveAP();
+
+            setLockState(LOCK_STATE_LOCK);
 
             AsyncWebServerResponse *response = request->beginResponse(LittleFS, "/index.html", "text/html"); 
             response->addHeader("Server", "ESP Async Web Server");
@@ -480,12 +484,14 @@ void Bootstrap::wireWebServerAndPaths() {
             request->send(response);
 
             BS_LOG_PRINTF("%s:%s: [%s] %s\n", request->client()->remoteIP().toString().c_str(), getHttpMethodName(request->method()), request->url().c_str(), "handled");
-            xSemaphoreGive(bs_mutex); 
+
+            setLockState(LOCK_STATE_UNLOCK);
         });
     server.on("/generate_204", HTTP_GET, [this](AsyncWebServerRequest* request)
         {
-            ap_mode_activity = true;
-            while (xSemaphoreTake(bs_mutex, portMAX_DELAY) != pdTRUE) {};
+            setActiveAP();
+
+            setLockState(LOCK_STATE_LOCK);
 
             AsyncWebServerResponse *response = request->beginResponse(LittleFS, "/index.html", "text/html"); 
             response->addHeader("Server", "ESP Async Web Server");
@@ -493,12 +499,14 @@ void Bootstrap::wireWebServerAndPaths() {
             request->send(response);
 
             BS_LOG_PRINTF("%s:%s: [%s] %s\n", request->client()->remoteIP().toString().c_str(), getHttpMethodName(request->method()), request->url().c_str(), "handled");
-            xSemaphoreGive(bs_mutex); 
+
+            setLockState(LOCK_STATE_UNLOCK);
         });
     server.on("/gen_204", HTTP_GET, [this](AsyncWebServerRequest* request)
         {
-            ap_mode_activity = true;
-            while (xSemaphoreTake(bs_mutex, portMAX_DELAY) != pdTRUE) {};
+            setActiveAP();
+
+            setLockState(LOCK_STATE_LOCK);
 
             AsyncWebServerResponse *response = request->beginResponse(LittleFS, "/index.html", "text/html"); 
             response->addHeader("Server", "ESP Async Web Server");
@@ -506,12 +514,14 @@ void Bootstrap::wireWebServerAndPaths() {
             request->send(response);
 
             BS_LOG_PRINTF("%s:%s: [%s] %s\n", request->client()->remoteIP().toString().c_str(), getHttpMethodName(request->method()), request->url().c_str(), "handled");
-            xSemaphoreGive(bs_mutex); 
+
+            setLockState(LOCK_STATE_UNLOCK);
         });
     server.on("/ncsi.txt", HTTP_GET, [this](AsyncWebServerRequest* request)
         {
-            ap_mode_activity = true;
-            while (xSemaphoreTake(bs_mutex, portMAX_DELAY) != pdTRUE) {};
+            setActiveAP();
+
+            setLockState(LOCK_STATE_LOCK);
 
             AsyncWebServerResponse *response = request->beginResponse(LittleFS, "/index.html", "text/html"); 
             response->addHeader("Server", "ESP Async Web Server");
@@ -519,12 +529,14 @@ void Bootstrap::wireWebServerAndPaths() {
             request->send(response);
 
             BS_LOG_PRINTF("%s:%s: [%s] %s\n", request->client()->remoteIP().toString().c_str(), getHttpMethodName(request->method()), request->url().c_str(), "handled");
-            xSemaphoreGive(bs_mutex); 
+
+            setLockState(LOCK_STATE_UNLOCK);
         });
     server.on("/check_network_status.txt", HTTP_GET, [this](AsyncWebServerRequest* request)
         {
-            ap_mode_activity = true;
-            while (xSemaphoreTake(bs_mutex, portMAX_DELAY) != pdTRUE) {};
+            setActiveAP();
+
+            setLockState(LOCK_STATE_LOCK);
 
             AsyncWebServerResponse *response = request->beginResponse(LittleFS, "/index.html", "text/html"); 
             response->addHeader("Server", "ESP Async Web Server");
@@ -532,13 +544,14 @@ void Bootstrap::wireWebServerAndPaths() {
             request->send(response);
 
             BS_LOG_PRINTF("%s:%s: [%s] %s\n", request->client()->remoteIP().toString().c_str(), getHttpMethodName(request->method()), request->url().c_str(), "handled");
-            xSemaphoreGive(bs_mutex); 
+
+            setLockState(LOCK_STATE_UNLOCK);
         });
 
     // request reboot
     server.on("/reboot", HTTP_GET, [this](AsyncWebServerRequest* request)
         {
-            while (xSemaphoreTake(bs_mutex, portMAX_DELAY) != pdTRUE) {};
+            setLockState(LOCK_STATE_LOCK);
 
             AsyncWebServerResponse *response = request->beginResponse(302); 
             response->addHeader("Server", "ESP Async Web Server");
@@ -547,7 +560,8 @@ void Bootstrap::wireWebServerAndPaths() {
             request->send(response);
 
             BS_LOG_PRINTF("%s:%s: [%s] %s\n", request->client()->remoteIP().toString().c_str(), getHttpMethodName(request->method()), request->url().c_str(), "handled");
-            xSemaphoreGive(bs_mutex); 
+
+            setLockState(LOCK_STATE_UNLOCK);
 
             requestReboot();
         });
@@ -555,7 +569,7 @@ void Bootstrap::wireWebServerAndPaths() {
     // save config
     server.on("/save", HTTP_GET, [this](AsyncWebServerRequest* request)
         {
-            while (xSemaphoreTake(bs_mutex, portMAX_DELAY) != pdTRUE) {};
+            setLockState(LOCK_STATE_LOCK);
 
             for (tiny_int i = 0; i < request->params(); i++) {
                 updateConfigItem(request->getParam(i)->name(), request->getParam(i)->value());
@@ -570,13 +584,14 @@ void Bootstrap::wireWebServerAndPaths() {
             request->send(response);
 
             BS_LOG_PRINTF("%s:%s: [%s] %s\n", request->client()->remoteIP().toString().c_str(), getHttpMethodName(request->method()), request->url().c_str(), "handled");
-            xSemaphoreGive(bs_mutex); 
+
+            setLockState(LOCK_STATE_UNLOCK);
         });
 
     // load config
     server.on("/load", HTTP_GET, [this](AsyncWebServerRequest* request)
         {
-            while (xSemaphoreTake(bs_mutex, portMAX_DELAY) != pdTRUE) {};
+            setLockState(LOCK_STATE_LOCK);
 
             BS_LOG_PRINTLN();
             wireConfig();
@@ -589,13 +604,14 @@ void Bootstrap::wireWebServerAndPaths() {
             request->send(response);
 
             BS_LOG_PRINTF("%s:%s: [%s] %s\n", request->client()->remoteIP().toString().c_str(), getHttpMethodName(request->method()), request->url().c_str(), "handled");
-            xSemaphoreGive(bs_mutex); 
+
+            setLockState(LOCK_STATE_UNLOCK);
         });
 
     // wipe config
     server.on("/wipe", HTTP_GET, [this](AsyncWebServerRequest* request)
         {
-            while (xSemaphoreTake(bs_mutex, portMAX_DELAY) != pdTRUE) {};
+            setLockState(LOCK_STATE_LOCK);
 
             const boolean reboot = !request->hasParam("noreboot");
 
@@ -608,7 +624,8 @@ void Bootstrap::wireWebServerAndPaths() {
             wipeConfig();
 
             BS_LOG_PRINTF("%s:%s: [%s] %s\n", request->client()->remoteIP().toString().c_str(), getHttpMethodName(request->method()), request->url().c_str(), "handled");
-            xSemaphoreGive(bs_mutex); 
+
+            setLockState(LOCK_STATE_UNLOCK);
 
             // trigger a reboot
             if (reboot) esp_reboot_requested = true;
@@ -617,8 +634,8 @@ void Bootstrap::wireWebServerAndPaths() {
     // 404 (includes file handling)
     server.onNotFound([this](AsyncWebServerRequest* request)
         {
-            ap_mode_activity = true;
-            while (xSemaphoreTake(bs_mutex, portMAX_DELAY) != pdTRUE) {};
+            setActiveAP();
+            setLockState(LOCK_STATE_LOCK);
 
             String url = request->url(); url.toLowerCase();
 
@@ -645,7 +662,8 @@ void Bootstrap::wireWebServerAndPaths() {
                 
                 BS_LOG_PRINTF("%s:%s: [%s] %s\n", request->client()->remoteIP().toString().c_str(), getHttpMethodName(request->method()), url.c_str(), "not found!");
             }
-            xSemaphoreGive(bs_mutex); 
+
+            setLockState(LOCK_STATE_UNLOCK);
         });
 
     // begin the web server
@@ -697,15 +715,17 @@ void Bootstrap::updateHtmlTemplate(String template_filename, bool show_time) {
 
         if (updateExtraHtmlTemplateItemsCallback != NULL) updateExtraHtmlTemplateItemsCallback(&html);
 
-        while (xSemaphoreTake(bs_mutex, portMAX_DELAY) != pdTRUE) {};
-        BS_LOG_PRINTF("----- rebuilding %s\n", output_filename.c_str());
+        setLockState(LOCK_STATE_LOCK);
 
+        BS_LOG_PRINTF("----- rebuilding %s\n", output_filename.c_str());
+        
         File _index = LittleFS.open(output_filename, FILE_WRITE);
         _index.print(html.c_str());
         _index.close();
 
         BS_LOG_PRINTF("----- %s rebuilt\n", output_filename.c_str());
-        xSemaphoreGive(bs_mutex);
+
+        setLockState(LOCK_STATE_UNLOCK);
     }
 }
 
@@ -743,6 +763,23 @@ const char* Bootstrap::getHttpMethodName(const WebRequestMethodComposite method)
             return "ANY";
         default:
             return "UNKNOWN";
+    }
+}
+
+void Bootstrap::setLockState(tiny_int state) {
+    switch (state) {
+        case LOCK_STATE_LOCK:
+            #ifdef esp32
+                while (xSemaphoreTake(bs_mutex, portMAX_DELAY) != pdTRUE) {};
+            #endif
+            break;
+        case LOCK_STATE_UNLOCK:
+            #ifdef esp32
+                xSemaphoreGive(bs_mutex); 
+            #endif
+            break;
+        default:
+            break;
     }
 }
 

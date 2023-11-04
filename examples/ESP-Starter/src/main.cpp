@@ -48,6 +48,11 @@ void setup() {
   // get a fresh copy of our extended config struct
   memcpy(&my_config, bs.cfg(), sizeof(my_config));
 
+  // initialize our extended config struct if values are not set
+  if (my_config.station_id_flag != CFG_SET) {
+    String().toCharArray(my_config.station_id, STATION_ID_LEN);
+  }
+
   bs.updateSetupHtml();
   bs.updateIndexHtml();
 

@@ -59,13 +59,13 @@ static TelnetSpy *SandT;
 
 #include <Wire.h>
 #include <SPI.h>
-#include <mutex>
 
 #define WATCHDOG_TIMEOUT_S 15
 
 #ifdef esp32
     #include <WiFi.h>
     #include <AsyncTCP.h>
+    #include <mutex>
 
     #define WIFI_DISCONNECTED WIFI_EVENT_STA_DISCONNECTED
 
@@ -101,6 +101,9 @@ static TelnetSpy *SandT;
 
 #define CFG_NOT_SET                 0x0
 #define CFG_SET                     0x9
+
+#define LOCK_STATE_LOCK             0
+#define LOCK_STATE_UNLOCK           1
 
 typedef unsigned char tiny_int;
 
@@ -163,6 +166,8 @@ class Bootstrap {
         void wireElegantOTA();
         const char* getHttpMethodName(const WebRequestMethodComposite method);
 
+        void setLockState(tiny_int state);
+
         #ifdef BS_USE_TELNETSPY
             void checkForRemoteCommand();
             long _serial_baud_rate;
@@ -170,8 +175,6 @@ class Bootstrap {
         #endif
 
         String _project_name;
-
-        SemaphoreHandle_t bs_mutex = xSemaphoreCreateMutex();
 
         DNSServer dnsServer;
         const byte DNS_PORT = 53;
@@ -190,6 +193,7 @@ class Bootstrap {
         std::function<void(String *html)> updateExtraHtmlTemplateItemsCallback = NULL;
 
         #ifdef esp32
+            SemaphoreHandle_t bs_mutex = xSemaphoreCreateMutex();
             static void IRAM_ATTR watchDogInterrupt();
         #else
             ESP8266Timer iTimer;
