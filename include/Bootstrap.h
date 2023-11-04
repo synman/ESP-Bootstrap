@@ -59,6 +59,7 @@ static TelnetSpy *SandT;
 
 #include <Wire.h>
 #include <SPI.h>
+#include <mutex>
 
 #define WATCHDOG_TIMEOUT_S 15
 
@@ -169,6 +170,8 @@ class Bootstrap {
         #endif
 
         String _project_name;
+
+        SemaphoreHandle_t bs_mutex = xSemaphoreCreateMutex();
 
         DNSServer dnsServer;
         const byte DNS_PORT = 53;

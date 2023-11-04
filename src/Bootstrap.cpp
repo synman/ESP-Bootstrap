@@ -23,7 +23,7 @@ AsyncWebServer server(80);
 
 void Bootstrap::setup() {
     INIT_LED;
-
+    
     BS_LOG_WELCOME_MSG("\n" + _project_name + " - Press ? for a list of commands\n");
     BS_LOG_BEGIN(_serial_baud_rate);
     BS_LOG_PRINTLN("\n\n" + _project_name + " Start Up\n");
@@ -93,16 +93,12 @@ void Bootstrap::loop() {
     }
 
     if (setup_needs_update) {
-        BS_LOG_PRINTLN("----- rebuilding /setup.html");
         updateHtmlTemplate("/setup.template.html", false);
-        BS_LOG_PRINTLN("-----  /setup.html rebuilt");
         setup_needs_update = false;
     }
 
     if (index_needs_update) {
-        BS_LOG_PRINTLN("----- rebuilding /index.html");
         updateHtmlTemplate("/index.template.html", false);
-        BS_LOG_PRINTLN("-----  /index.html rebuilt");
         index_needs_update = false;
     }
 
@@ -448,84 +444,119 @@ void Bootstrap::wireWebServerAndPaths() {
     // define setup document
     server.on("/setup", HTTP_GET, [this](AsyncWebServerRequest* request)
         {
+            while (xSemaphoreTake(bs_mutex, portMAX_DELAY) != pdTRUE) {};
+
             AsyncWebServerResponse *response = request->beginResponse(LittleFS, "/setup.html", "text/html"); 
             response->addHeader("Server", "ESP Async Web Server");
             response->addHeader("X-Powered-By", "ESP-Bootstrap");
             request->send(response);
+
             BS_LOG_PRINTF("%s:%s: [%s] %s\n", request->client()->remoteIP().toString().c_str(), getHttpMethodName(request->method()), request->url().c_str(), "handled");
+            xSemaphoreGive(bs_mutex); 
         });
 
     // captive portal
     server.on("/hotspot-detect.html", HTTP_GET, [this](AsyncWebServerRequest* request)
         {
             ap_mode_activity = true;
+            while (xSemaphoreTake(bs_mutex, portMAX_DELAY) != pdTRUE) {};
+
             AsyncWebServerResponse *response = request->beginResponse(LittleFS, "/index.html", "text/html"); 
             response->addHeader("Server", "ESP Async Web Server");
             response->addHeader("X-Powered-By", "ESP-Bootstrap");
             request->send(response);
+
             BS_LOG_PRINTF("%s:%s: [%s] %s\n", request->client()->remoteIP().toString().c_str(), getHttpMethodName(request->method()), request->url().c_str(), "handled");
+            xSemaphoreGive(bs_mutex); 
         });
     server.on("/library/test/success.html", HTTP_GET, [this](AsyncWebServerRequest* request)
         {
             ap_mode_activity = true;
+            while (xSemaphoreTake(bs_mutex, portMAX_DELAY) != pdTRUE) {};
+
             AsyncWebServerResponse *response = request->beginResponse(LittleFS, "/index.html", "text/html"); 
             response->addHeader("Server", "ESP Async Web Server");
             response->addHeader("X-Powered-By", "ESP-Bootstrap");
             request->send(response);
+
             BS_LOG_PRINTF("%s:%s: [%s] %s\n", request->client()->remoteIP().toString().c_str(), getHttpMethodName(request->method()), request->url().c_str(), "handled");
+            xSemaphoreGive(bs_mutex); 
         });
     server.on("/generate_204", HTTP_GET, [this](AsyncWebServerRequest* request)
         {
             ap_mode_activity = true;
+            while (xSemaphoreTake(bs_mutex, portMAX_DELAY) != pdTRUE) {};
+
             AsyncWebServerResponse *response = request->beginResponse(LittleFS, "/index.html", "text/html"); 
             response->addHeader("Server", "ESP Async Web Server");
             response->addHeader("X-Powered-By", "ESP-Bootstrap");
             request->send(response);
+
             BS_LOG_PRINTF("%s:%s: [%s] %s\n", request->client()->remoteIP().toString().c_str(), getHttpMethodName(request->method()), request->url().c_str(), "handled");
+            xSemaphoreGive(bs_mutex); 
         });
     server.on("/gen_204", HTTP_GET, [this](AsyncWebServerRequest* request)
         {
             ap_mode_activity = true;
+            while (xSemaphoreTake(bs_mutex, portMAX_DELAY) != pdTRUE) {};
+
             AsyncWebServerResponse *response = request->beginResponse(LittleFS, "/index.html", "text/html"); 
             response->addHeader("Server", "ESP Async Web Server");
             response->addHeader("X-Powered-By", "ESP-Bootstrap");
             request->send(response);
+
             BS_LOG_PRINTF("%s:%s: [%s] %s\n", request->client()->remoteIP().toString().c_str(), getHttpMethodName(request->method()), request->url().c_str(), "handled");
+            xSemaphoreGive(bs_mutex); 
         });
     server.on("/ncsi.txt", HTTP_GET, [this](AsyncWebServerRequest* request)
         {
             ap_mode_activity = true;
+            while (xSemaphoreTake(bs_mutex, portMAX_DELAY) != pdTRUE) {};
+
             AsyncWebServerResponse *response = request->beginResponse(LittleFS, "/index.html", "text/html"); 
             response->addHeader("Server", "ESP Async Web Server");
             response->addHeader("X-Powered-By", "ESP-Bootstrap");
             request->send(response);
+
             BS_LOG_PRINTF("%s:%s: [%s] %s\n", request->client()->remoteIP().toString().c_str(), getHttpMethodName(request->method()), request->url().c_str(), "handled");
+            xSemaphoreGive(bs_mutex); 
         });
     server.on("/check_network_status.txt", HTTP_GET, [this](AsyncWebServerRequest* request)
         {
             ap_mode_activity = true;
+            while (xSemaphoreTake(bs_mutex, portMAX_DELAY) != pdTRUE) {};
+
             AsyncWebServerResponse *response = request->beginResponse(LittleFS, "/index.html", "text/html"); 
             response->addHeader("Server", "ESP Async Web Server");
             response->addHeader("X-Powered-By", "ESP-Bootstrap");
             request->send(response);
+
             BS_LOG_PRINTF("%s:%s: [%s] %s\n", request->client()->remoteIP().toString().c_str(), getHttpMethodName(request->method()), request->url().c_str(), "handled");
+            xSemaphoreGive(bs_mutex); 
         });
 
     // request reboot
     server.on("/reboot", HTTP_GET, [this](AsyncWebServerRequest* request)
         {
+            while (xSemaphoreTake(bs_mutex, portMAX_DELAY) != pdTRUE) {};
+
             AsyncWebServerResponse *response = request->beginResponse(302); 
             response->addHeader("Server", "ESP Async Web Server");
             response->addHeader("X-Powered-By", "ESP-Bootstrap");
             response->addHeader("Location", "/index.html");
             request->send(response);
+
             BS_LOG_PRINTF("%s:%s: [%s] %s\n", request->client()->remoteIP().toString().c_str(), getHttpMethodName(request->method()), request->url().c_str(), "handled");
-            esp_reboot_requested = true;
+            xSemaphoreGive(bs_mutex); 
+
+            requestReboot();
         });
 
     // save config
     server.on("/save", HTTP_GET, [this](AsyncWebServerRequest* request)
         {
+            while (xSemaphoreTake(bs_mutex, portMAX_DELAY) != pdTRUE) {};
+
             for (tiny_int i = 0; i < request->params(); i++) {
                 updateConfigItem(request->getParam(i)->name(), request->getParam(i)->value());
             }
@@ -539,14 +570,17 @@ void Bootstrap::wireWebServerAndPaths() {
             request->send(response);
 
             BS_LOG_PRINTF("%s:%s: [%s] %s\n", request->client()->remoteIP().toString().c_str(), getHttpMethodName(request->method()), request->url().c_str(), "handled");
+            xSemaphoreGive(bs_mutex); 
         });
 
     // load config
     server.on("/load", HTTP_GET, [this](AsyncWebServerRequest* request)
         {
+            while (xSemaphoreTake(bs_mutex, portMAX_DELAY) != pdTRUE) {};
+
             BS_LOG_PRINTLN();
             wireConfig();
-            setup_needs_update = true;
+            updateSetupHtml();
 
             AsyncWebServerResponse *response = request->beginResponse(302); 
             response->addHeader("Server", "ESP Async Web Server");
@@ -555,11 +589,14 @@ void Bootstrap::wireWebServerAndPaths() {
             request->send(response);
 
             BS_LOG_PRINTF("%s:%s: [%s] %s\n", request->client()->remoteIP().toString().c_str(), getHttpMethodName(request->method()), request->url().c_str(), "handled");
+            xSemaphoreGive(bs_mutex); 
         });
 
     // wipe config
     server.on("/wipe", HTTP_GET, [this](AsyncWebServerRequest* request)
         {
+            while (xSemaphoreTake(bs_mutex, portMAX_DELAY) != pdTRUE) {};
+
             const boolean reboot = !request->hasParam("noreboot");
 
             AsyncWebServerResponse *response = request->beginResponse(302); 
@@ -568,9 +605,10 @@ void Bootstrap::wireWebServerAndPaths() {
             response->addHeader("Location", "/index.html");
             request->send(response);
 
-            BS_LOG_PRINTF("%s:%s: [%s] %s\n", request->client()->remoteIP().toString().c_str(), getHttpMethodName(request->method()), request->url().c_str(), "handled");
-
             wipeConfig();
+
+            BS_LOG_PRINTF("%s:%s: [%s] %s\n", request->client()->remoteIP().toString().c_str(), getHttpMethodName(request->method()), request->url().c_str(), "handled");
+            xSemaphoreGive(bs_mutex); 
 
             // trigger a reboot
             if (reboot) esp_reboot_requested = true;
@@ -580,6 +618,8 @@ void Bootstrap::wireWebServerAndPaths() {
     server.onNotFound([this](AsyncWebServerRequest* request)
         {
             ap_mode_activity = true;
+            while (xSemaphoreTake(bs_mutex, portMAX_DELAY) != pdTRUE) {};
+
             String url = request->url(); url.toLowerCase();
 
             if (LittleFS.exists(request->url())) {
@@ -605,6 +645,7 @@ void Bootstrap::wireWebServerAndPaths() {
                 
                 BS_LOG_PRINTF("%s:%s: [%s] %s\n", request->client()->remoteIP().toString().c_str(), getHttpMethodName(request->method()), url.c_str(), "not found!");
             }
+            xSemaphoreGive(bs_mutex); 
         });
 
     // begin the web server
@@ -647,14 +688,24 @@ void Bootstrap::updateHtmlTemplate(String template_filename, bool show_time) {
                 BS_LOG_PRINTLN("Timestamp   = " + timestamp);
         }
 
+        if (html.indexOf("{ip_address}", 0) != 1) {
+            const String ipAddr = wifimode == WIFI_STA ? WiFi.localIP().toString() : WiFi.softAPIP().toString();
+            while (html.indexOf("{ip_address}", 0) != -1) {
+                html.replace("{ip_address}", ipAddr);
+            }
+        }
+
         if (updateExtraHtmlTemplateItemsCallback != NULL) updateExtraHtmlTemplateItemsCallback(&html);
 
-        File _index = LittleFS.open(output_filename + ".new", FILE_WRITE);
+        while (xSemaphoreTake(bs_mutex, portMAX_DELAY) != pdTRUE) {};
+        BS_LOG_PRINTF("----- rebuilding %s\n", output_filename.c_str());
+
+        File _index = LittleFS.open(output_filename, FILE_WRITE);
         _index.print(html.c_str());
         _index.close();
 
-        LittleFS.remove(output_filename);
-        LittleFS.rename(output_filename + ".new", output_filename);
+        BS_LOG_PRINTF("----- %s rebuilt\n", output_filename.c_str());
+        xSemaphoreGive(bs_mutex);
     }
 }
 
