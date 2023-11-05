@@ -711,6 +711,19 @@ void Bootstrap::updateHtmlTemplate(String template_filename, bool show_time) {
             }
         }
 
+        if (html.indexOf("{chipset_icon}", 0) != 1) {
+            #ifdef esp32
+                const String iconFile = "/favicon-32x32.png";
+            #else
+                const String iconFile = "/esp8266.jpg";
+            #endif
+            while (html.indexOf("{chipset_icon}", 0) != -1) {
+                html.replace("{chipset_icon}", iconFile);
+            }
+        }
+
+        
+
         if (updateExtraHtmlTemplateItemsCallback != NULL) updateExtraHtmlTemplateItemsCallback(&html);
 
         setLockState(LOCK_STATE_LOCK);
