@@ -156,11 +156,9 @@ void Bootstrap::setConfigSize(const short size) {
 }
 
 void Bootstrap::cfg(void *cfg, short size) {
-    EEPROM.begin(EEPROM_SIZE);
-    EEPROM.get(0, base_config);
-    EEPROM.end();
     memcpy(config, cfg, size);
     memcpy(config, &base_config, sizeof(base_config));
+    memcpy(cfg, config, size);
 
     config_size = size;
 }
