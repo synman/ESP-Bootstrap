@@ -145,6 +145,8 @@ class Bootstrap {
         void wireWebServerAndPaths();
 
         void requestReboot();
+        void requestDeepSleep(const unsigned long usec);
+        
         void updateSetupHtml();
         void updateIndexHtml();
 
@@ -185,6 +187,8 @@ class Bootstrap {
         CONFIG_TYPE *base_config;
 
         bool esp_reboot_requested;
+        unsigned long esp_sleep_time = 0;
+
         bool ap_mode_activity;
         bool setup_needs_update;
         bool index_needs_update;

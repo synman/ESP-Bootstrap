@@ -38,28 +38,32 @@ bool Bootstrap::setup() {
     BS_LOG_PRINTF("\n  Last Reset Reason: [%d]\n", resetReason);
 
     wireConfig();
-    wireLittleFS();
+
+    if (resetReason != RESET_REASON_DEEP_SLEEP_AWAKE) wireLittleFS();
    
     if (!wireWiFi()) return false;
 
-    wireArduinoOTA();
-    wireElegantOTA();
-    wireWebServerAndPaths();
+    if (resetReason != RESET_REASON_DEEP_SLEEP_AWAKE) {
+        wireArduinoOTA();
+        wireElegantOTA();
+        wireWebServerAndPaths();
 
-    // defer updating setup.html
-    updateSetupHtml();
+        // defer updating setup.html
+        updateSetupHtml();
 
-    // wire up our custom watchdog
-    #ifdef esp32
-        watchDogTimer = timerBegin(2, 80, true);
-        timerAttachInterrupt(watchDogTimer, &watchDogInterrupt, true);
-        timerAlarmWrite(watchDogTimer, WATCHDOG_TIMEOUT_S * 1000000, false);
-        timerAlarmEnable(watchDogTimer);
-    #else
-        iTimer.attachInterruptInterval(WATCHDOG_TIMEOUT_S * 1000000, timerHandler);
-    #endif
+        // wire up our custom watchdog
+        #ifdef esp32
+            watchDogTimer = timerBegin(2, 80, true);
+            timerAttachInterrupt(watchDogTimer, &watchDogInterrupt, true);
+            timerAlarmWrite(watchDogTimer, WATCHDOG_TIMEOUT_S * 1000000, false);
+            timerAlarmEnable(watchDogTimer);
+        #else
+            iTimer.attachInterruptInterval(WATCHDOG_TIMEOUT_S * 1000000, timerHandler);
+        #endif
 
-    BS_LOG_PRINTLN("Watchdog started");
+        BS_LOG_PRINTLN("Watchdog started");
+    }
+    
     return true;
 }
 
@@ -81,43 +85,55 @@ void Bootstrap::loop() {
         while (1) {} // will never get here
     }
 
+    // handle a sleep request if pending
+    if (esp_sleep_time) {
+        #ifdef esp32
+            esp_sleep_enable_timer_wakeup(esp_sleep_time);
+            esp_deep_sleep_start();
+        #else
+            ESP.deepSleep(esp_sleep_time);
+        #endif
+    }
+
     // captive portal if in AP mode
     if (wifimode == WIFI_AP) {
         dnsServer.processNextRequest();
     } else {
-        if (wifistate == WIFI_DISCONNECTED) {
-            // LOG_PRINTLN("sleeping for 180 seconds. . .");
-            // for (tiny_int x = 0; x < 180; x++) {
-            //   delay(1000);
-            //   watchDogRefresh();
-            // }
+        if (wifistate == WIFI_DISCONNECTED && !esp_sleep_time && !esp_reboot_requested) {
+            BS_LOG_PRINTLN("sleeping for 180 seconds. . .");
+            for (tiny_int x = 0; x < 180; x++) {
+              delay(1000);
+              watchDogRefresh();
+            }
             BS_LOG_PRINTLN("\nRebooting due to no wifi connection");
-            esp_reboot_requested = true;
+            requestReboot();
             return;
         }
 
         // check for OTA
-        ArduinoOTA.handle();
-        ElegantOTA.loop();
+        if (resetReason != RESET_REASON_DEEP_SLEEP_AWAKE) {
+            ArduinoOTA.handle();
+            ElegantOTA.loop();
+        }
     }
 
     // reboot if in AP mode and no activity for 5 minutes
     if (wifimode == WIFI_AP && !ap_mode_activity && millis() >= 300000UL) {
         BS_LOG_PRINTF("\nNo AP activity for 5 minutes -- triggering reboot");
-        esp_reboot_requested = true;
+        requestReboot();
     }
 
-    if (setup_needs_update) {
+    if (setup_needs_update && resetReason != RESET_REASON_DEEP_SLEEP_AWAKE) {
         updateHtmlTemplate("/setup.template.html", false);
         setup_needs_update = false;
     }
 
-    if (index_needs_update) {
+    if (index_needs_update && resetReason != RESET_REASON_DEEP_SLEEP_AWAKE) {
         updateHtmlTemplate("/index.template.html", false);
         index_needs_update = false;
     }
 
-    watchDogRefresh();
+    if (resetReason != RESET_REASON_DEEP_SLEEP_AWAKE) watchDogRefresh();
 }
 
 void Bootstrap::watchDogRefresh() {
@@ -164,8 +180,7 @@ void Bootstrap::wireConfig() {
 
 void Bootstrap::setConfig(void *cfg, const short size) {
     config = (char *) cfg;
-    base_config = (CONFIG_TYPE *) cfg;
-    
+    base_config = (CONFIG_TYPE *) cfg; 
     config_size = size;
 }
 
@@ -1013,6 +1028,10 @@ void Bootstrap::setLockState(tiny_int state) {
 void Bootstrap::requestReboot() {
     esp_reboot_requested = true;
 }
+void Bootstrap::requestDeepSleep(const unsigned long usec) {
+    esp_sleep_time = usec;
+}
+
 void Bootstrap::updateSetupHtml() {
     setup_needs_update = true;
 }
@@ -1031,17 +1050,19 @@ void Bootstrap::blink() {
 }
 
 String Bootstrap::getTimestamp() {
-    struct tm timeinfo;
-    char timebuf[255];
+    if (resetReason != RESET_REASON_DEEP_SLEEP_AWAKE) {
+        struct tm timeinfo;
+        char timebuf[255];
 
-    if (wifimode == WIFI_AP || !getLocalTime(&timeinfo)) {
-        const unsigned long now = millis();
-        sprintf(timebuf, "%06lu.%03lu", now / 1000, now % 1000);
-    } else {
-        sprintf(timebuf, "%4d-%2.2d-%2.2d %2.2d:%2.2d:%2.2d", timeinfo.tm_year + 1900, timeinfo.tm_mon + 1, timeinfo.tm_mday, timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec);
+        if (wifimode == WIFI_AP || !getLocalTime(&timeinfo)) {
+            const unsigned long now = millis();
+            sprintf(timebuf, "%06lu.%03lu", now / 1000, now % 1000);
+        } else {
+            sprintf(timebuf, "%4d-%2.2d-%2.2d %2.2d:%2.2d:%2.2d", timeinfo.tm_year + 1900, timeinfo.tm_mon + 1, timeinfo.tm_mday, timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec);
+        }
+        return String(timebuf);
     }
-
-    return String(timebuf);
+    return String("time not available in sleep mode");
 }
 
 void Bootstrap::setActiveAP() {
