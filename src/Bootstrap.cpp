@@ -21,16 +21,27 @@ AsyncWebServer server(80);
     }
 #endif
 
-void Bootstrap::setup() {
+bool Bootstrap::setup() {
     INIT_LED;
 
     BS_LOG_WELCOME_MSG("\n" + _project_name + " - Press ? for a list of commands\n");
     BS_LOG_BEGIN(_serial_baud_rate);
     BS_LOG_PRINTLN("\n\n" + _project_name + " Start Up\n");
 
+    #ifdef esp32
+        resetReason = rtc_get_reset_reason(0);
+    #else
+        rst_info *reset_info = ESP.getResetInfoPtr();
+        resetReason = reset_info->reason;
+    #endif
+
+    BS_LOG_PRINTF("\n  Last Reset Reason: [%d]\n", resetReason);
+
     wireConfig();
     wireLittleFS();
-    wireWiFi();
+   
+    if (!wireWiFi()) return false;
+
     wireArduinoOTA();
     wireElegantOTA();
     wireWebServerAndPaths();
@@ -39,16 +50,17 @@ void Bootstrap::setup() {
     updateSetupHtml();
 
     // wire up our custom watchdog
-#ifdef esp32
-    watchDogTimer = timerBegin(2, 80, true);
-    timerAttachInterrupt(watchDogTimer, &watchDogInterrupt, true);
-    timerAlarmWrite(watchDogTimer, WATCHDOG_TIMEOUT_S * 1000000, false);
-    timerAlarmEnable(watchDogTimer);
-#else
-    iTimer.attachInterruptInterval(WATCHDOG_TIMEOUT_S * 1000000, timerHandler);
-#endif
+    #ifdef esp32
+        watchDogTimer = timerBegin(2, 80, true);
+        timerAttachInterrupt(watchDogTimer, &watchDogInterrupt, true);
+        timerAlarmWrite(watchDogTimer, WATCHDOG_TIMEOUT_S * 1000000, false);
+        timerAlarmEnable(watchDogTimer);
+    #else
+        iTimer.attachInterruptInterval(WATCHDOG_TIMEOUT_S * 1000000, timerHandler);
+    #endif
 
     BS_LOG_PRINTLN("Watchdog started");
+    return true;
 }
 
 void Bootstrap::loop() {
@@ -58,7 +70,10 @@ void Bootstrap::loop() {
     // handle a reboot request if pending
     if (esp_reboot_requested) {
         ElegantOTA.loop();
+
+        WiFi.disconnect();
         delay(1000);
+
         BS_LOG_PRINTLN("\nReboot triggered. . .");
         BS_LOG_HANDLE();
         BS_LOG_FLUSH();
@@ -106,100 +121,83 @@ void Bootstrap::loop() {
 }
 
 void Bootstrap::watchDogRefresh() {
-#ifdef esp32
-    timerWrite(watchDogTimer, 0);
-#else
-    if (timer_pinged) {
-        timer_pinged = false;
-        BS_LOG_PRINTLN("PONG");
-        BS_LOG_FLUSH();
-    }
-#endif    
+    #ifdef esp32
+        timerWrite(watchDogTimer, 0);
+    #else
+        if (timer_pinged) {
+            timer_pinged = false;
+            BS_LOG_PRINTLN("PONG");
+            BS_LOG_FLUSH();
+        }
+    #endif    
 }
 
 void Bootstrap::wireConfig() {
-    memset(config, CFG_NOT_SET, EEPROM_SIZE);
-
     // configuration storage
-    EEPROM.begin(EEPROM_SIZE);
+    EEPROM.begin(config_size);
     uint8_t* p = (uint8_t*)(config);
     for (short i = 0; i < config_size; i++) {
         *(p + i) = EEPROM.read(i);
     }
     EEPROM.end();
 
-    memcpy(&base_config, config, sizeof(base_config));
-
-    if (base_config.hostname_flag != CFG_SET) {
-        strcpy(base_config.hostname, DEFAULT_HOSTNAME);
+    if (base_config->hostname_flag != CFG_SET) {
+        strcpy(base_config->hostname, DEFAULT_HOSTNAME);
     }
 
-    if (base_config.ssid_flag == CFG_SET) {
-        if (String(base_config.ssid).length() > 0) wifimode = WIFI_STA;
+    if (base_config->ssid_flag == CFG_SET) {
+        if (String(base_config->ssid).length() > 0) wifimode = WIFI_STA;
     } else {
-        memset(base_config.ssid, CFG_NOT_SET, WIFI_SSID_LEN);
+        memset(base_config->ssid, CFG_NOT_SET, WIFI_SSID_LEN);
         wifimode = WIFI_AP;
     }
 
-    if (base_config.ssid_pwd_flag != CFG_SET) memset(base_config.ssid_pwd, CFG_NOT_SET, WIFI_SSID_PWD_LEN);
+    if (base_config->ssid_pwd_flag != CFG_SET) memset(base_config->ssid_pwd, CFG_NOT_SET, WIFI_SSID_PWD_LEN);
+    if (base_config->bssid_flag != CFG_SET) memset(base_config->bssid, CFG_NOT_SET, WIFI_BSSID_LEN);
 
     BS_LOG_PRINTLN();
-    BS_LOG_PRINTLN("        EEPROM size: [" + String(EEPROM_SIZE) + "]");
-    BS_LOG_PRINTLN("        config size: [" + String(config_size) + "]\n");
-    BS_LOG_PRINTLN("        config host: [" + String(base_config.hostname) + "] stored: " + (base_config.hostname_flag == CFG_SET ? "true" : "false"));
-    BS_LOG_PRINTLN("        config ssid: [" + String(base_config.ssid) + "] stored: " + (base_config.ssid_flag == CFG_SET ? "true" : "false"));
-    BS_LOG_PRINTLN("    config ssid pwd: [" + String(base_config.ssid_pwd_flag == CFG_SET ? "********] stored: " : "] stored: ") + String(base_config.ssid_pwd_flag == CFG_SET ? "true" : "false"));
+    BS_LOG_PRINTLN("        config size: [" + String(config_size) + "]");
+    BS_LOG_PRINTLN("        config host: [" + String(base_config->hostname) + "] stored: " + (base_config->hostname_flag == CFG_SET ? "true" : "false"));
+    BS_LOG_PRINTLN("        config ssid: [" + String(base_config->ssid) + "] stored: " + (base_config->ssid_flag == CFG_SET ? "true" : "false"));
+    BS_LOG_PRINTLN("    config ssid pwd: [" + String(base_config->ssid_pwd_flag == CFG_SET ? "********] stored: " : "] stored: ") + String(base_config->ssid_pwd_flag == CFG_SET ? "true" : "false"));
 }
 
-void Bootstrap::setConfigSize(const short size) {
+void Bootstrap::setConfig(void *cfg, const short size) {
+    config = (char *) cfg;
+    base_config = (CONFIG_TYPE *) cfg;
+    
     config_size = size;
-}
-
-void Bootstrap::cfg(void *cfg, short size) {
-    memcpy(config, cfg, size);
-    memcpy(config, &base_config, sizeof(base_config));
-    memcpy(cfg, config, size);
-
-    config_size = size;
-}
-
-char* Bootstrap::cfg() {
-    char cfg[config_size];
-    memset(&cfg, CFG_NOT_SET, config_size);
-    memcpy(&cfg, &config, config_size);
-
-    return config;
 }
 
 void Bootstrap::updateConfigItem(const String item, String value) {
     if (item == "hostname") {
-        memset(base_config.hostname, CFG_NOT_SET, HOSTNAME_LEN);
+        memset(base_config->hostname, CFG_NOT_SET, HOSTNAME_LEN);
         if (value.length() > 0) {
-            base_config.hostname_flag = CFG_SET;
+            base_config->hostname_flag = CFG_SET;
         } else {
-            base_config.hostname_flag = CFG_NOT_SET;
+            base_config->hostname_flag = CFG_NOT_SET;
             value = DEFAULT_HOSTNAME;
         }
-        value.toCharArray(base_config.hostname, HOSTNAME_LEN);
+        value.toCharArray(base_config->hostname, HOSTNAME_LEN);
         return;
     }
     if (item == "ssid") {
-        memset(base_config.ssid, CFG_NOT_SET, WIFI_SSID_LEN);
+        memset(base_config->ssid, CFG_NOT_SET, WIFI_SSID_LEN);
         if (value.length() > 0) {
-            value.toCharArray(base_config.ssid, WIFI_SSID_LEN);
-            base_config.ssid_flag = CFG_SET;
+            value.toCharArray(base_config->ssid, WIFI_SSID_LEN);
+            base_config->ssid_flag = CFG_SET;
         } else {
-            base_config.ssid_flag = CFG_NOT_SET;
+            base_config->ssid_flag = CFG_NOT_SET;
         }
         return;
     }
     if (item == "ssid_pwd") {
-        memset(base_config.ssid_pwd, CFG_NOT_SET, WIFI_SSID_PWD_LEN);
+        memset(base_config->ssid_pwd, CFG_NOT_SET, WIFI_SSID_PWD_LEN);
         if (value.length() > 0) {
-            value.toCharArray(base_config.ssid_pwd, WIFI_SSID_PWD_LEN);
-            base_config.ssid_pwd_flag = CFG_SET;
+            value.toCharArray(base_config->ssid_pwd, WIFI_SSID_PWD_LEN);
+            base_config->ssid_pwd_flag = CFG_SET;
         } else {
-            base_config.ssid_pwd_flag = CFG_NOT_SET;
+            base_config->ssid_pwd_flag = CFG_NOT_SET;
         }
         return;
     }
@@ -210,11 +208,8 @@ void Bootstrap::updateExtraConfigItem(std::function<void(const String item, Stri
 }
 
 void Bootstrap::saveConfig() {
-    if (saveExtraConfigCallback != NULL) saveExtraConfigCallback();
-    memcpy(&config, &base_config, sizeof(base_config));
-
-    EEPROM.begin(EEPROM_SIZE);
-    uint8_t* p = (uint8_t*)(&config);
+    EEPROM.begin(config_size);
+    uint8_t* p = (uint8_t*)(config);
     for (short i = 0; i < config_size; i++) {
         EEPROM.write(i, *(p + i));
     }
@@ -223,22 +218,10 @@ void Bootstrap::saveConfig() {
 
     updateSetupHtml();
 }
-void Bootstrap::saveExtraConfig(std::function<void()> callable) {
-    saveExtraConfigCallback = callable;    
-}
-
 void Bootstrap::wipeConfig() {
-    memset(&config, CFG_NOT_SET, EEPROM_SIZE);
-    memset(&base_config, CFG_NOT_SET, sizeof(base_config));
-    strcpy(base_config.hostname, DEFAULT_HOSTNAME);
-    
-    EEPROM.begin(EEPROM_SIZE);
-    uint8_t* p = (uint8_t*)(&config);
-    for (unsigned long i = 0; i < EEPROM_SIZE; i++) {
-        EEPROM.write(i, *(p + i));
-    }
-    EEPROM.commit();
-    EEPROM.end();
+    memset(config, CFG_NOT_SET, config_size);
+    saveConfig();
+    strcpy(base_config->hostname, DEFAULT_HOSTNAME);
 
     BS_LOG_PRINTF("\nConfig wiped\n");
 }
@@ -266,13 +249,13 @@ void Bootstrap::wireLittleFS() {
     }
 }
 
-void Bootstrap::wireWiFi() {
+bool Bootstrap::wireWiFi() {
     // Connect to Wi-Fi network with SSID and password
     // or fall back to AP mode
     WiFi.persistent(false);
     WiFi.setAutoConnect(false);
     WiFi.setAutoReconnect(false);
-    WiFi.hostname(base_config.hostname);
+    WiFi.hostname(base_config->hostname);
     WiFi.mode(wifimode);
 
     #ifdef esp32
@@ -295,32 +278,35 @@ void Bootstrap::wireWiFi() {
             });
     #endif
 
-    // WiFi.scanNetworks will return the number of networks found
-    uint8_t nothing = 0;
-    uint8_t* bestBssid;
-    bestBssid = &nothing;
+    uint8_t *bestBssid = NULL;
     short bestRssi = SHRT_MIN;
 
-    BS_LOG_PRINTLN("\nScanning Wi-Fi networks. . .");
-    int n = WiFi.scanNetworks();
+    if (base_config->bssid_flag == CFG_SET) {
+        bestRssi = 0;
+        bestBssid = (uint8_t*) base_config->bssid;
+    } else {
+        // WiFi.scanNetworks will return the number of networks found
+        BS_LOG_PRINTLN("\nScanning Wi-Fi networks. . .");
+        int n = WiFi.scanNetworks();
 
-    // arduino is too stupid to know which AP has the best signal
-    // when connecting to an SSID with multiple BSSIDs (WAPs / Repeaters)
-    // so we find the best one and tell it to use it
-    if (n > 0 ) {
-        for (int i = 0; i < n; ++i) {
-            BS_LOG_PRINTF("   ssid: %s - rssi: %d\n", WiFi.SSID(i).c_str(), WiFi.RSSI(i));
-            if (base_config.ssid_flag == CFG_SET && WiFi.SSID(i).equals(base_config.ssid) && WiFi.RSSI(i) > bestRssi) {
-                bestRssi = WiFi.RSSI(i);
-                bestBssid = WiFi.BSSID(i);
+        // arduino is too stupid to know which AP has the best signal
+        // when connecting to an SSID with multiple BSSIDs (WAPs / Repeaters)
+        // so we find the best one and tell it to use it
+        if (n > 0 ) {
+            for (int i = 0; i < n; ++i) {
+                BS_LOG_PRINTF("   ssid: %s - rssi: %d\n", WiFi.SSID(i).c_str(), WiFi.RSSI(i));
+                if (base_config->ssid_flag == CFG_SET && WiFi.SSID(i).equals(base_config->ssid) && WiFi.RSSI(i) > bestRssi) {
+                    bestRssi = WiFi.RSSI(i);
+                    bestBssid = WiFi.BSSID(i);
+                }
             }
         }
     }
 
     if (wifimode == WIFI_STA && bestRssi != SHRT_MIN) {
         wifistate = WIFI_EVENT_MAX;
-        BS_LOG_PRINTF("\nConnecting to %s / %d dB ", base_config.ssid, bestRssi);
-        WiFi.begin(base_config.ssid, base_config.ssid_pwd, 0, bestBssid, true);
+        BS_LOG_PRINTF("\nConnecting to %s %s.", base_config->ssid, base_config->bssid_flag == CFG_SET ? "(SAVED)" : "");
+        WiFi.begin(base_config->ssid, base_config->ssid_pwd, 0, bestBssid, true);
         for (tiny_int x = 0; x < 120 && WiFi.status() != WL_CONNECTED; x++) {
             blink();
             BS_LOG_PRINT(".");
@@ -330,6 +316,14 @@ void Bootstrap::wireWiFi() {
         BS_LOG_PRINTLN();
 
         if (WiFi.status() == WL_CONNECTED) {
+            // save the resolved bssid to the eeprom if it is new
+            if (memcmp(base_config->bssid, bestBssid, WIFI_BSSID_LEN) != 0) {
+                base_config->bssid_flag = CFG_SET;
+                memcpy(base_config->bssid, bestBssid, WIFI_BSSID_LEN);
+                saveConfig();
+                BS_LOG_PRINTLN("Saved new BSSID to EEPROM");
+            }
+            
             // initialize time
             configTime(0, 0, "pool.ntp.org");
             setenv("TZ", "EST+5EDT,M3.2.0/2,M11.1.0/2", 1);
@@ -337,22 +331,32 @@ void Bootstrap::wireWiFi() {
 
             BS_LOG_PRINT("\nCurrent Time: ");
             BS_LOG_PRINTLN(getTimestamp());
+        } else if (base_config->bssid_flag == CFG_SET) {
+            // clear out our saved bssid if is set as something is wrong
+            BS_LOG_PRINTLN("Cleared saved BSSID from EEPROM");
+            base_config->bssid_flag = CFG_NOT_SET;
+            memset(base_config->bssid, CFG_NOT_SET, WIFI_BSSID_LEN);
+            saveConfig();
+            requestReboot();
+            return false;
         }
     }
 
     if (WiFi.status() != WL_CONNECTED || wifimode == WIFI_AP) {
         wifimode = WIFI_AP;
         WiFi.mode(wifimode);
-        WiFi.softAP(base_config.hostname);
+        WiFi.softAP(base_config->hostname);
         dnsServer.start(DNS_PORT, "*", WiFi.softAPIP());
-        BS_LOG_PRINTLN("\nSoftAP [" + String(base_config.hostname) + "] started");
+        BS_LOG_PRINTLN("\nSoftAP [" + String(base_config->hostname) + "] started");
     }
 
     BS_LOG_PRINTLN();
-    BS_LOG_PRINT("    Hostname: "); BS_LOG_PRINTLN(base_config.hostname);
-    BS_LOG_PRINT("Connected to: "); BS_LOG_PRINTLN(wifimode == WIFI_STA ? base_config.ssid : base_config.hostname);
+    BS_LOG_PRINT("    Hostname: "); BS_LOG_PRINTLN(base_config->hostname);
+    BS_LOG_PRINT("Connected to: "); BS_LOG_PRINTLN(wifimode == WIFI_STA ? base_config->ssid : base_config->hostname);
     BS_LOG_PRINT("  IP address: "); BS_LOG_PRINTLN(wifimode == WIFI_STA ? WiFi.localIP().toString() : WiFi.softAPIP().toString());
     BS_LOG_PRINT("        RSSI: "); BS_LOG_PRINTLN(String(WiFi.RSSI()) + " dB");    
+
+    return true;
 }
 
 void Bootstrap::wireArduinoOTA() {
@@ -684,15 +688,15 @@ void Bootstrap::updateHtmlTemplate(String template_filename, bool show_time) {
         }
 
         while (html.indexOf("{hostname}", 0) != -1) {
-            html.replace("{hostname}", String(base_config.hostname));
+            html.replace("{hostname}", String(base_config->hostname));
         }
 
         while (html.indexOf("{ssid}", 0) != -1) {
-            html.replace("{ssid}", String(base_config.ssid));
+            html.replace("{ssid}", String(base_config->ssid));
         }
 
         while (html.indexOf("{ssid_pwd}", 0) != -1) {
-            html.replace("{ssid_pwd}", String(base_config.ssid_pwd));
+            html.replace("{ssid_pwd}", String(base_config->ssid_pwd));
         }
 
         if (html.indexOf("{timestamp}", 0) != 1) {
@@ -936,28 +940,23 @@ void Bootstrap::setLockState(tiny_int state) {
                     BS_LOG_PRINTLN("S");
                     BS_LOG_FLUSH();                    
 
-                    memset(base_config.ssid, CFG_NOT_SET, WIFI_SSID_LEN);
+                    memset(base_config->ssid, CFG_NOT_SET, WIFI_SSID_LEN);
                     if (ssid.length() > 0) {
-                        ssid.toCharArray(base_config.ssid, WIFI_SSID_LEN);
-                        base_config.ssid_flag = CFG_SET;
+                        ssid.toCharArray(base_config->ssid, WIFI_SSID_LEN);
+                        base_config->ssid_flag = CFG_SET;
                     } else {
-                        base_config.ssid_flag = CFG_NOT_SET;
+                        base_config->ssid_flag = CFG_NOT_SET;
                     }
 
-                    memset(base_config.ssid_pwd, CFG_NOT_SET, WIFI_SSID_PWD_LEN);
+                    memset(base_config->ssid_pwd, CFG_NOT_SET, WIFI_SSID_PWD_LEN);
                     if (ssid_pwd.length() > 0) {
-                        ssid_pwd.toCharArray(base_config.ssid_pwd, WIFI_SSID_PWD_LEN);
-                        base_config.ssid_pwd_flag = CFG_SET;
+                        ssid_pwd.toCharArray(base_config->ssid_pwd, WIFI_SSID_PWD_LEN);
+                        base_config->ssid_pwd_flag = CFG_SET;
                     } else {
-                        base_config.ssid_pwd_flag = CFG_NOT_SET;
+                        base_config->ssid_pwd_flag = CFG_NOT_SET;
                     }
 
-                    memcpy(&config, &base_config, sizeof(base_config));
-
-                    EEPROM.begin(EEPROM_SIZE);
-                    EEPROM.put(0, base_config);
-                    EEPROM.commit();
-                    EEPROM.end();
+                    saveConfig();
 
                     BS_LOG_PRINTLN("\nSSID and Password saved - reload config or reboot\n");
                     BS_LOG_FLUSH();
@@ -978,10 +977,21 @@ void Bootstrap::setLockState(tiny_int state) {
                 break;
             case 'R':
                 BS_LOG_PRINTLN(F("\r\nSubmitting reboot request..."));
-                esp_reboot_requested = true;
-                break;
+                requestReboot();
+                return;
             case ' ':
                 // do nothing -- just a simple echo
+                break;
+            case 'B':
+                // clear out saved BSSID
+                if (base_config->bssid_flag == CFG_SET) {
+                    base_config->bssid_flag = CFG_NOT_SET;
+                    memset(base_config->bssid, CFG_NOT_SET, WIFI_BSSID_LEN);
+                    saveConfig();
+                    BS_LOG_PRINTLN("\nSaved BSSID cleared out\n");
+                } else {
+                    BS_LOG_PRINTLN("\nBSSID is not saved!\n");
+                }
                 break;
             case 'C':
                 // current time

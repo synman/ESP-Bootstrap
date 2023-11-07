@@ -39,14 +39,12 @@ void setup() {
   #ifdef BS_USE_TELNETSPY
     bs.setExtraRemoteCommands(setExtraRemoteCommands);
   #endif
-  bs.updateExtraConfigItem(updateExtraConfigItem);
-  bs.saveExtraConfig([]() { bs.cfg(&my_config, sizeof(my_config)); });
-  bs.updateExtraHtmlTemplateItems(updateExtraHtmlTemplateItems);
-  bs.setConfigSize(sizeof(my_config));
-  bs.setup();
 
-  // get a fresh copy of our extended config struct
-  memcpy(&my_config, bs.cfg(), sizeof(my_config));
+  bs.setConfig(&my_config, sizeof(my_config));
+  bs.updateExtraConfigItem(updateExtraConfigItem);
+  bs.updateExtraHtmlTemplateItems(updateExtraHtmlTemplateItems);
+  
+  if (!bs.setup()) return;
 
   // initialize our extended config struct if values are not set
   if (my_config.station_id_flag != CFG_SET) {

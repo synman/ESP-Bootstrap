@@ -66,6 +66,7 @@ static TelnetSpy *SandT;
     #include <WiFi.h>
     #include <AsyncTCP.h>
     #include <mutex>
+    #include <rom/rtc.h>
 
     #define WIFI_DISCONNECTED WIFI_EVENT_STA_DISCONNECTED
 
@@ -92,18 +93,19 @@ static TelnetSpy *SandT;
 #include <ESPAsyncWebServer.h>
 #include <ElegantOTA.h>
 
-#define EEPROM_SIZE 4096
-#define HOSTNAME_LEN 32
-#define WIFI_SSID_LEN 32
-#define WIFI_SSID_PWD_LEN 64
+#define HOSTNAME_LEN                  32
+#define WIFI_SSID_LEN                 32
+#define WIFI_SSID_PWD_LEN             64
+#define WIFI_BSSID_LEN                6
 
-#define DEFAULT_HOSTNAME            HOSTNAME
+#define RESET_REASON_DEEP_SLEEP_AWAKE 5
+#define DEFAULT_HOSTNAME              HOSTNAME
 
-#define CFG_NOT_SET                 0x0
-#define CFG_SET                     0x9
+#define CFG_NOT_SET                   0x0
+#define CFG_SET                       0x9
 
-#define LOCK_STATE_LOCK             0
-#define LOCK_STATE_UNLOCK           1
+#define LOCK_STATE_LOCK               0
+#define LOCK_STATE_UNLOCK             1
 
 typedef unsigned char tiny_int;
 
@@ -114,6 +116,8 @@ typedef struct config_type {
     char ssid[WIFI_SSID_LEN];
     tiny_int ssid_pwd_flag;
     char ssid_pwd[WIFI_SSID_PWD_LEN];
+    tiny_int bssid_flag;
+    byte bssid[WIFI_BSSID_LEN];
 } CONFIG_TYPE;
 
 class Bootstrap {
@@ -121,27 +125,22 @@ class Bootstrap {
         #ifdef BS_USE_TELNETSPY
             Bootstrap(String project_name, TelnetSpy *spy, long serial_baud_rate=1500000);
             void setExtraRemoteCommands(std::function<void(char c)> callable);
-            const String builtInRemoteCommandsMenu = "\n\nCommands:\n\nC = Current Timestamp\nD = Disconnect WiFi\nF = Filesystem Info\nS - Set SSID / Password\nL = Reload Config\nW = Wipe Config\nX = Close Session\nR = Reboot ESP\n";
+            const String builtInRemoteCommandsMenu = "\n\nCommands:\n\nC = Current Timestamp\nD = Disconnect WiFi\nF = Filesystem Info\nS - Set SSID / Password\nB - Clear saved BSSID (if set)\nL = Reload Config\nW = Wipe Config\nX = Close Session\nR = Reboot ESP\n";
         #else
             Bootstrap(String project_name);
         #endif
 
-        void setup();
+        bool setup();
         void loop();
         void watchDogRefresh();
 
-        void setConfigSize(const short size);
-        void cfg(void *cfg, short size);
-        char* cfg();
-        
-        void wireConfig();
+        // void setConfigSize(const short size);
+        // void cfg(void *cfg);
+        void setConfig(void *cfg, const short size);
         void wipeConfig();
-
         void updateConfigItem(const String item, String value);
         void updateExtraConfigItem(std::function<void(const String item, String value)> callable);
-
         void saveConfig();
-        void saveExtraConfig(std::function<void()> callable);
 
         void wireWebServerAndPaths();
 
@@ -158,10 +157,12 @@ class Bootstrap {
 
         WiFiMode_t wifimode = WIFI_AP;
         int wifistate = WIFI_EVENT_MAX;
+        tiny_int resetReason = 0;
 
     private:
+        void wireConfig();
         void wireLittleFS();
-        void wireWiFi();
+        bool wireWiFi();
         void wireArduinoOTA();
         void wireElegantOTA();
         const char* getHttpMethodName(const WebRequestMethodComposite method);
@@ -179,9 +180,9 @@ class Bootstrap {
         DNSServer dnsServer;
         const byte DNS_PORT = 53;
 
-        CONFIG_TYPE base_config;
-        short config_size = sizeof(base_config);
-        char config[EEPROM_SIZE];
+        char *config;
+        short config_size;
+        CONFIG_TYPE *base_config;
 
         bool esp_reboot_requested;
         bool ap_mode_activity;
@@ -189,7 +190,6 @@ class Bootstrap {
         bool index_needs_update;
 
         std::function<void(const String item, String value)> updateExtraConfigItemCallback = NULL;
-        std::function<void()> saveExtraConfigCallback = NULL;
         std::function<void(String *html)> updateExtraHtmlTemplateItemsCallback = NULL;
 
         #ifdef esp32
